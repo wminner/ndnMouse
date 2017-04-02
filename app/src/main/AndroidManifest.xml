@@ -13,8 +13,10 @@
 
         <activity
             android:name=".MainActivity"
-            android:label="Start"
-            android:theme="@style/NoActionBar">
+            android:theme="@style/NoActionBar"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -23,9 +25,11 @@
 
         <activity
             android:name=".MouseActivity"
-            android:label="Mouse"
+            android:label="@string/mouse_label"
             android:parentActivityName=".MainActivity"
-            android:theme="@style/AppTheme">
+            android:theme="@style/AppTheme"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|keyboardHidden">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".MainActivity" />
@@ -33,12 +37,14 @@
 
         <activity
             android:name=".SettingsActivity"
-            android:label="Settings"
-            android:parentActivityName=".MainActivity"
-            android:theme="@style/AppTheme">
+            android:label="@string/settings_label"
+            android:parentActivityName=".MouseActivity"
+            android:theme="@style/AppTheme"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|keyboardHidden">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".MainActivity" />
+                android:value=".MouseActivity" />
         </activity>
 
     </application>

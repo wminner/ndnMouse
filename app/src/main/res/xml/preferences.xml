@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <SwitchPreferenceCompat
+        android:defaultValue="@bool/pref_tap_to_left_click_default"
+        android:key="@string/pref_tap_to_left_click_key"
+        android:title="@string/pref_tap_to_left_click_label" />
+
+
+</PreferenceScreen>

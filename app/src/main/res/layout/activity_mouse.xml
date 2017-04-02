@@ -10,7 +10,7 @@
     android:weightSum="1">
 
     <TextView
-        android:id="@+id/tv_touch_pad"
+        android:id="@+id/tv_touchpad"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_margin="20dp"
