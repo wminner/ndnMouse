@@ -1,5 +1,11 @@
 <resources>
+    <!--Start Activity-->
     <string name="app_name">ndnMouse</string>
+    <string name="start_button">START SERVER</string>
+    <string name="server_name">IP ADDRESS</string>
+    <string name="server_password">PASSWORD</string>
+
+    <!--Mouse Activity-->
     <string name="left_click_label">LEFT CLICK</string>
     <string name="right_click_label">RIGHT CLICK</string>
     <string name="touchpad_label">TOUCHPAD</string>

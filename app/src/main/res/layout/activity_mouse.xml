@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
+    android:id="@+id/ll_main"
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -13,10 +14,11 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_margin="20dp"
+        android:layout_weight=".15"
         android:background="@drawable/back"
         android:gravity="center"
         android:text="@string/touchpad_label"
-        android:layout_weight=".15"/>
+        android:textSize="30sp" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -29,21 +31,23 @@
             android:id="@+id/b_left_click"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_marginBottom="20dp"
             android:layout_marginLeft="20dp"
             android:layout_marginRight="10dp"
-            android:layout_marginBottom="20dp"
             android:layout_weight=".5"
-            android:text="@string/left_click_label" />
+            android:text="@string/left_click_label"
+            android:textSize="24sp" />
 
         <Button
             android:id="@+id/b_right_click"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_marginBottom="20dp"
             android:layout_marginLeft="10dp"
             android:layout_marginRight="20dp"
-            android:layout_marginBottom="20dp"
             android:layout_weight=".5"
-            android:text="@string/right_click_label" />
+            android:text="@string/right_click_label"
+            android:textSize="24sp" />
 
     </LinearLayout>
 
