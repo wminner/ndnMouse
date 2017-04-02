@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <array name="pref_movement_labels">
+        <item>@string/pref_move_rel_label</item>
+        <item>@string/pref_move_abs_label</item>
+    </array>
+
+    <array name="pref_movement_values">
+        <item>@string/pref_move_rel_value</item>
+        <item>@string/pref_move_abs_value</item>
+    </array>
+
+</resources>

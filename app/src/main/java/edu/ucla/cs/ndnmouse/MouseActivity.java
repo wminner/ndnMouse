@@ -23,7 +23,7 @@ public class MouseActivity extends AppCompatActivity {
     private static int mTouchpadY;
     private static int mTouchpadWidth;
     private static int mTouchpadHeight;
-    private static TextView mTouchpadTextView;
+    private TextView mTouchpadTextView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,6 +86,10 @@ public class MouseActivity extends AppCompatActivity {
             Intent startSettingsActivity = new Intent(this, SettingsActivity.class);
             startActivity(startSettingsActivity);
             return true;
+        } else if (id == R.id.action_keyboard) {
+            Intent startKeyboardActivity = new Intent(this, KeyboardActivity.class);
+            startActivity(startKeyboardActivity);
+            return true;
         }
         return super.onOptionsItemSelected(item);
     }
@@ -113,7 +117,7 @@ public class MouseActivity extends AppCompatActivity {
         int relative_x = x - mTouchpadX;
         int relative_y = y - mTouchpadY;
         if ((0 <= relative_x && 0 <= relative_y) && (relative_x <= mTouchpadWidth && relative_y <= mTouchpadHeight)) {
-            String newCoord = getString(R.string.touchpad_label) +  String.format("\n(%d, %d)", relative_x, relative_y);
+            String newCoord = getString(R.string.touchpad_label) +  "\n(" + relative_x + ", " + relative_y + ")";
             mTouchpadTextView.setText(newCoord);
         }
     }
@@ -125,6 +129,6 @@ public class MouseActivity extends AppCompatActivity {
         } else if (click.equals(getString(R.string.action_right_click))) {
             newClick = getString(R.string.action_right_click);
         }
-        mTouchpadTextView.setText(getString(R.string.touchpad_label) + "\n" + newClick);
+        mTouchpadTextView.setText(getString(R.string.touchpad_label) + "\n(" + newClick + ")");
     }
 }

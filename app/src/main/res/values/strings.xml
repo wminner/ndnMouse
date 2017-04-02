@@ -3,6 +3,7 @@
     <string name="app_name">ndnMouse</string>
     <string name="settings_label">Settings</string>
     <string name="mouse_label">Mouse</string>
+    <string name="keyboard_label">Keyboard</string>
 
     <!--Main Activity-->
     <string name="start_button">START SERVER</string>
@@ -16,9 +17,11 @@
     <string name="action_settings">Settings</string>
     <string name="action_left_click">left_click</string>
     <string name="action_right_click">right_click</string>
+    <string name="action_keyboard">Keyboard</string>
 
     <!--Settings Activity-->
     <string name="pref_tap_to_left_click_label">Tap to Left Click</string>
+    <string name="pref_movement_label">Movement</string>
     <string name="pref_move_rel_label">Relative</string>
     <string name="pref_move_abs_label">Absolute</string>
 
