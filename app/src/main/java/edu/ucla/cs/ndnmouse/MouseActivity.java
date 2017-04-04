@@ -1,19 +1,18 @@
 package edu.ucla.cs.ndnmouse;
 
-import android.content.Context;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
-import android.util.StringBuilderPrinter;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.TextView;
+
+import edu.ucla.cs.ndnmouse.utilities.ServerTCP;
 
 public class MouseActivity extends AppCompatActivity {
 
@@ -25,13 +24,14 @@ public class MouseActivity extends AppCompatActivity {
     private static int mTouchpadHeight;
     private TextView mTouchpadTextView;
 
+    private ServerTCP server;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_mouse);
 
         mTouchpadTextView = (TextView) findViewById(R.id.tv_touchpad);
-
         // Find out upper-left coordinate, and width/height of touchpad box
         final TextView mTouchpadTextView = (TextView) findViewById(R.id.tv_touchpad);
         mTouchpadTextView.post(new Runnable() {
@@ -52,24 +52,15 @@ public class MouseActivity extends AppCompatActivity {
         });
 
         setupButtonCallbacks();
+
+        // Create and start server
+        server = new ServerTCP(this);
     }
 
-    private void setupButtonCallbacks() {
-        final Button leftClickButton = (Button) findViewById(R.id.b_left_click);
-        leftClickButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                displayClick(getString(R.string.action_left_click));
-            }
-        });
-
-        final Button rightClickButton = (Button) findViewById(R.id.b_right_click);
-        rightClickButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                displayClick(getString(R.string.action_right_click));
-            }
-        });
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        server.onDestroy();
     }
 
     @Override
@@ -113,6 +104,33 @@ public class MouseActivity extends AppCompatActivity {
         return true;
     }
 
+    /**
+     * Function to setup each button callback
+     */
+    private void setupButtonCallbacks() {
+        final Button leftClickButton = (Button) findViewById(R.id.b_left_click);
+        leftClickButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                displayClick(getString(R.string.action_left_click));
+            }
+        });
+
+        final Button rightClickButton = (Button) findViewById(R.id.b_right_click);
+        rightClickButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                displayClick(getString(R.string.action_right_click));
+            }
+        });
+    }
+
+    /**
+     * Function to display x, y coordinate on the touchpad (for debugging purposes)
+     *
+     * @param x absolute horizontal coordinate on screen
+     * @param y absolute vertical coordinate on screen
+     */
     private void displayCoordinate(int x, int y) {
         int relative_x = x - mTouchpadX;
         int relative_y = y - mTouchpadY;
@@ -122,6 +140,11 @@ public class MouseActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Function to display user's clicks on the touchpad (for debugging purposes)
+     *
+     * @param click either "left_click" or "right_click", found in res/values/strings.xml
+     */
     private void displayClick(String click) {
         String newClick = "";
         if (click.equals(getString(R.string.action_left_click))) {

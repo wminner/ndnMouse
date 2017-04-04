@@ -6,6 +6,8 @@ import android.os.Bundle;
 
 public class SettingsActivity extends AppCompatActivity {
 
+    private static final String TAG = SettingsActivity.class.getSimpleName();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

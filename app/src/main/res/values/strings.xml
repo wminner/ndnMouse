@@ -9,6 +9,9 @@
     <string name="start_button">START SERVER</string>
     <string name="server_name">ADDRESS</string>
     <string name="server_password">PASSWORD</string>
+    <string name="protocol_label">PROTOCOL</string>
+    <string name="ndn_label">NDN</string>
+    <string name="alt_protocol_label">UDP</string>
 
     <!--Mouse Activity-->
     <string name="left_click_label">LEFT CLICK</string>

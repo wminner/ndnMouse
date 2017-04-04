@@ -9,6 +9,8 @@ import android.support.v7.preference.PreferenceScreen;
 
 public class SettingsFragment extends PreferenceFragmentCompat implements SharedPreferences.OnSharedPreferenceChangeListener {
 
+    private static final String TAG = SettingsFragment.class.getSimpleName();
+
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
         addPreferencesFromResource(R.xml.preferences);
@@ -30,18 +32,9 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
         }
     }
 
-    // Set the summary of the Movement list preference
-    private void setPreferenceSummary(Preference preference, String value) {
-        if (preference instanceof ListPreference) {
-            ListPreference listPreference = (ListPreference) preference;
-            int prefIndex = listPreference.findIndexOfValue(value);
-            if (prefIndex >= 0) {
-                listPreference.setSummary(listPreference.getEntries()[prefIndex]);
-            }
-        }
-    }
-
-    // Catch changes to Movement list preference and update summary accordingly
+    /**
+     * Catch changes to Movement list preference and update summary accordingly
+     */
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
         Preference preference = findPreference(key);
@@ -63,5 +56,18 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Shared
     public void onDestroy() {
         super.onDestroy();
         getPreferenceScreen().getSharedPreferences().unregisterOnSharedPreferenceChangeListener(this);
+    }
+
+    /**
+     * Set the summary of the Movement list preference
+     */
+    private void setPreferenceSummary(Preference preference, String value) {
+        if (preference instanceof ListPreference) {
+            ListPreference listPreference = (ListPreference) preference;
+            int prefIndex = listPreference.findIndexOfValue(value);
+            if (prefIndex >= 0) {
+                listPreference.setSummary(listPreference.getEntries()[prefIndex]);
+            }
+        }
     }
 }

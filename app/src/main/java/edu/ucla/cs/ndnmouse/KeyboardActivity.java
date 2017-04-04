@@ -5,6 +5,8 @@ import android.os.Bundle;
 
 public class KeyboardActivity extends AppCompatActivity {
 
+    private static final String TAG = KeyboardActivity.class.getSimpleName();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

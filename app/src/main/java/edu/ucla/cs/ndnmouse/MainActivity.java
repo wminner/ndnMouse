@@ -25,6 +25,9 @@ public class MainActivity extends AppCompatActivity {
         setupSharedPreferences();
     }
 
+    /**
+     * Function to setup all button callbacks
+     */
     private void setupButtonCallbacks() {
         final Button startButton = (Button) findViewById(R.id.b_start);
         startButton.setOnClickListener(new View.OnClickListener() {
@@ -50,6 +53,9 @@ public class MainActivity extends AppCompatActivity {
 //        });
     }
 
+    /**
+     * Function to load preferences
+     */
     private void setupSharedPreferences() {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 
