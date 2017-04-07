@@ -1,6 +1,7 @@
 package edu.ucla.cs.ndnmouse;
 
 import android.content.Intent;
+import android.graphics.Point;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -17,6 +18,7 @@ import edu.ucla.cs.ndnmouse.utilities.ServerTCP;
 public class MouseActivity extends AppCompatActivity {
 
     private static final String TAG = MouseActivity.class.getSimpleName();
+    private static final int mPort = 10888;
 
     private static int mTouchpadX;
     private static int mTouchpadY;
@@ -24,7 +26,9 @@ public class MouseActivity extends AppCompatActivity {
     private static int mTouchpadHeight;
     private TextView mTouchpadTextView;
 
-    private ServerTCP server;
+    private ServerTCP mServer;
+
+    private Point mLastPos;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,15 +56,17 @@ public class MouseActivity extends AppCompatActivity {
         });
 
         setupButtonCallbacks();
+        mLastPos = new Point();
 
-        // Create and start server
-        server = new ServerTCP(this);
+        // Create and start mServer
+        mServer = new ServerTCP(this, mPort);
+        mServer.start();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        server.onDestroy();
+        mServer.stop();
     }
 
     @Override
@@ -135,6 +141,7 @@ public class MouseActivity extends AppCompatActivity {
         int relative_x = x - mTouchpadX;
         int relative_y = y - mTouchpadY;
         if ((0 <= relative_x && 0 <= relative_y) && (relative_x <= mTouchpadWidth && relative_y <= mTouchpadHeight)) {
+            mLastPos.set(relative_x, relative_y);
             String newCoord = getString(R.string.touchpad_label) +  "\n(" + relative_x + ", " + relative_y + ")";
             mTouchpadTextView.setText(newCoord);
         }
@@ -153,5 +160,9 @@ public class MouseActivity extends AppCompatActivity {
             newClick = getString(R.string.action_right_click);
         }
         mTouchpadTextView.setText(getString(R.string.touchpad_label) + "\n(" + newClick + ")");
+    }
+
+    public Point getLastPosition() {
+        return mLastPos;
     }
 }
