@@ -6,7 +6,7 @@ import pyautogui
 
 def main(argv):
 	client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	server_address = ('164.67.229.108', 10888)
+	server_address = ('149.142.48.234', 10888)
 
 	print("Connecting to {0}, port {1}.".format(server_address[0], server_address[1]))
 	client_socket.connect(server_address)

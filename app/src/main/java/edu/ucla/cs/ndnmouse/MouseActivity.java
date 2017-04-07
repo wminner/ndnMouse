@@ -14,6 +14,7 @@ import android.widget.Button;
 import android.widget.TextView;
 
 import edu.ucla.cs.ndnmouse.utilities.ServerTCP;
+import edu.ucla.cs.ndnmouse.utilities.ServerUDP;
 
 public class MouseActivity extends AppCompatActivity {
 
@@ -26,7 +27,8 @@ public class MouseActivity extends AppCompatActivity {
     private static int mTouchpadHeight;
     private TextView mTouchpadTextView;
 
-    private ServerTCP mServer;
+    private ServerUDP mServer;
+    private Thread mServerThread;
 
     private Point mLastPos;
 
@@ -59,7 +61,7 @@ public class MouseActivity extends AppCompatActivity {
         mLastPos = new Point();
 
         // Create and start mServer
-        mServer = new ServerTCP(this, mPort);
+        mServer = new ServerUDP(this, mPort);
         mServer.start();
     }
 
@@ -164,5 +166,9 @@ public class MouseActivity extends AppCompatActivity {
 
     public Point getLastPosition() {
         return mLastPos;
+    }
+
+    public void setServerThread(Thread thread) {
+        mServerThread = thread;
     }
 }

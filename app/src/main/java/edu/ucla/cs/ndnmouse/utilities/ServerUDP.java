@@ -1,17 +1,14 @@
 package edu.ucla.cs.ndnmouse.utilities;
 
 import android.graphics.Point;
-import android.text.TextUtils;
 import android.util.Log;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.net.SocketException;
 import java.util.Collections;
 import java.util.List;
@@ -19,18 +16,18 @@ import java.util.List;
 import edu.ucla.cs.ndnmouse.MouseActivity;
 
 /**
- * Class to provide TCP communication with the PC client
+ * Class to provide UDP communication with the PC client
  *
  * Based off of example code at:
  * https://developer.android.com/samples/PermissionRequest/src/com.example.android.permissionrequest/SimpleWebServer.html
  */
-public class ServerTCP implements Runnable {
+public class ServerUDP implements Runnable {
 
-    private static final String TAG = ServerTCP.class.getSimpleName();
+    private static final String TAG = ServerUDP.class.getSimpleName();
 
     private MouseActivity mActivity;
 
-    private ServerSocket mSocket;
+    private DatagramSocket mSocket;
     private final int mPort;
     private boolean mIsRunning;
 
@@ -40,7 +37,7 @@ public class ServerTCP implements Runnable {
      * @param activity of the caller (so we can get position points)
      * @param port number for server to listen on
      */
-    public ServerTCP(MouseActivity activity, int port) {
+    public ServerUDP(MouseActivity activity, int port) {
         mActivity = activity;
         mPort = port;
     }
@@ -49,7 +46,7 @@ public class ServerTCP implements Runnable {
         mIsRunning = true;
         new Thread(this).start();
         mActivity.setServerThread(Thread.currentThread());
-        Log.d(TAG, "Started TCP server... " + getIPAddress(true) + ":" + mPort);
+        Log.d(TAG, "Started UDP server... " + getIPAddress(true) + ":" + mPort);
     }
 
     public void stop() {
@@ -59,8 +56,8 @@ public class ServerTCP implements Runnable {
                 mSocket.close();
                 mSocket = null;
             }
-            Log.d(TAG, "Stopped TCP server...");
-        } catch (IOException e) {
+            Log.d(TAG, "Stopped UDP server...");
+        } catch (Exception e) {
             Log.e(TAG, "Error closing the server socket.", e);
         }
     }
@@ -68,12 +65,17 @@ public class ServerTCP implements Runnable {
     @Override
     public void run() {
         try {
-            mSocket = new ServerSocket(mPort);
+            mSocket = new DatagramSocket(mPort);
             while (mIsRunning) {
-                Socket socket = mSocket.accept();
-                Log.d(TAG, "Accepted client connection...");
-                handle(socket);
-                socket.close();
+                byte[] buf = new byte[64];
+
+                // Get request
+                DatagramPacket packet = new DatagramPacket(buf, buf.length);
+                mSocket.receive(packet);  // Blocks program flow
+                Log.d(TAG, "Received client request...");
+
+                // Process request and send reply
+                handle(packet);
             }
         } catch (SocketException e) {
             Log.d(TAG, "Socket got disconnected!");
@@ -82,50 +84,28 @@ public class ServerTCP implements Runnable {
         }
     }
 
-    private void handle(Socket socket) throws IOException {
-        BufferedReader reader = null;
-        PrintStream output = null;
+    private void handle(DatagramPacket packet) throws IOException {
+        // Get address and port to send reply to
+        InetAddress replyAddr = packet.getAddress();
+        int replyPort = packet.getPort();
+        String data = new String(packet.getData());
+        // Trim null bytes off end
+        data = data.substring(0, data.indexOf('\0'));
+
+        Log.d(TAG, "Received request data: " + data);
+
         try {
-            String route = null;
-
-            // Read HTTP headers and parse out the route.
-            reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            String line;
-            while (!TextUtils.isEmpty(line = reader.readLine())) {
-                if (line.startsWith("GET /")) {
-                    int start = line.indexOf('/') + 1;
-                    int end = line.indexOf(' ', start);
-                    route = line.substring(start, end);
-                    break;
+            if (data.equals("GET position\n")) {
+                while (mIsRunning) {
+                    Point lastPos = mActivity.getLastPosition();
+                    byte[] reply = (lastPos.x + "," + lastPos.y + "\n").getBytes();
+                    DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, replyAddr, replyPort);
+                    mSocket.send(replyPacket);
+                    Thread.sleep(100);
                 }
-            }
-
-            // Output stream that we send the response to
-            output = new PrintStream(socket.getOutputStream());
-
-            // TODO look for specific message, otherwise throw error
-            if (null == route) {
-                writeServerError(output);
-                return;
-            }
-
-            // Send out the content
-            // TODO bad form
-            while (mIsRunning) {
-                Point lastPos = mActivity.getLastPosition();
-                output.write((lastPos.x + "," + lastPos.y + "\n").getBytes());
-                output.flush();
-                Thread.sleep(100);
             }
         } catch (InterruptedException | SocketException e) {
             e.printStackTrace();
-        } finally {
-            if (null != output) {
-                output.close();
-            }
-            if (null != reader) {
-                reader.close();
-            }
         }
     }
 
