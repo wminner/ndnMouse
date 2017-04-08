@@ -13,7 +13,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import edu.ucla.cs.ndnmouse.utilities.ServerTCP;
+import java.io.IOException;
+
 import edu.ucla.cs.ndnmouse.utilities.ServerUDP;
 
 public class MouseActivity extends AppCompatActivity {
@@ -30,7 +31,7 @@ public class MouseActivity extends AppCompatActivity {
     private ServerUDP mServer;
     private Thread mServerThread;
 
-    private Point mLastPos;
+    private Point mCurrPos;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,15 +55,15 @@ public class MouseActivity extends AppCompatActivity {
                 Log.d(TAG, String.format("Touchpad Y is %d", mTouchpadY));
                 Log.d(TAG, String.format("Touchpad width is %d", mTouchpadWidth));
                 Log.d(TAG, String.format("Touchpad height is %d", mTouchpadHeight));
+
+                // Create and start mServer
+                mServer = new ServerUDP(MouseActivity.this, mPort, mTouchpadWidth, mTouchpadHeight);
+                mServer.start();
             }
         });
 
         setupButtonCallbacks();
-        mLastPos = new Point();
-
-        // Create and start mServer
-        mServer = new ServerUDP(this, mPort);
-        mServer.start();
+        mCurrPos = new Point();
     }
 
     @Override
@@ -102,7 +103,7 @@ public class MouseActivity extends AppCompatActivity {
                 Log.d(TAG, String.format("ACTION_DOWN: %d %d", x, y));
                 break;
             case MotionEvent.ACTION_MOVE:
-                Log.d(TAG, String.format("ACTION_MOVE: %d %d", x, y));
+                // Log.d(TAG, String.format("ACTION_MOVE: %d %d", x, y));
                 break;
             case MotionEvent.ACTION_UP:
                 Log.d(TAG, String.format("ACTION_UP: %d %d", x, y));
@@ -116,19 +117,56 @@ public class MouseActivity extends AppCompatActivity {
      * Function to setup each button callback
      */
     private void setupButtonCallbacks() {
+        // Left click touch down and touch up
         final Button leftClickButton = (Button) findViewById(R.id.b_left_click);
-        leftClickButton.setOnClickListener(new View.OnClickListener() {
+        leftClickButton.setOnTouchListener(new View.OnTouchListener() {
             @Override
-            public void onClick(View v) {
-                displayClick(getString(R.string.action_left_click));
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    try {
+                        mServer.ExecuteClick(R.string.action_left_click_down);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    displayClick(getString(R.string.action_left_click_down));
+                } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    try {
+                        mServer.ExecuteClick(R.string.action_left_click_up);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    displayClick(getString(R.string.action_left_click_up));
+
+                } else {
+                    return false;
+                }
+                return true;
             }
         });
 
+        // Right click touch down and touch up
         final Button rightClickButton = (Button) findViewById(R.id.b_right_click);
-        rightClickButton.setOnClickListener(new View.OnClickListener() {
+        rightClickButton.setOnTouchListener(new View.OnTouchListener() {
             @Override
-            public void onClick(View v) {
-                displayClick(getString(R.string.action_right_click));
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    try {
+                        mServer.ExecuteClick(R.string.action_right_click_down);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    displayClick(getString(R.string.action_right_click_down));
+                } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    try {
+                        mServer.ExecuteClick(R.string.action_right_click_up);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    displayClick(getString(R.string.action_right_click_up));
+                } else {
+                    return false;
+                }
+                return true;
             }
         });
     }
@@ -143,7 +181,7 @@ public class MouseActivity extends AppCompatActivity {
         int relative_x = x - mTouchpadX;
         int relative_y = y - mTouchpadY;
         if ((0 <= relative_x && 0 <= relative_y) && (relative_x <= mTouchpadWidth && relative_y <= mTouchpadHeight)) {
-            mLastPos.set(relative_x, relative_y);
+            mCurrPos.set(relative_x, relative_y);
             String newCoord = getString(R.string.touchpad_label) +  "\n(" + relative_x + ", " + relative_y + ")";
             mTouchpadTextView.setText(newCoord);
         }
@@ -155,17 +193,17 @@ public class MouseActivity extends AppCompatActivity {
      * @param click either "left_click" or "right_click", found in res/values/strings.xml
      */
     private void displayClick(String click) {
-        String newClick = "";
-        if (click.equals(getString(R.string.action_left_click))) {
-            newClick = getString(R.string.action_left_click);
-        } else if (click.equals(getString(R.string.action_right_click))) {
-            newClick = getString(R.string.action_right_click);
-        }
-        mTouchpadTextView.setText(getString(R.string.touchpad_label) + "\n(" + newClick + ")");
+//        String newClick = "";
+//        if (click.equals(getString(R.string.action_left_click_down))) {
+//            newClick = getString(R.string.action_left_click_down);
+//        } else if (click.equals(getString(R.string.action_right_click_down))) {
+//            newClick = getString(R.string.action_right_click_down);
+//        }
+        mTouchpadTextView.setText(getString(R.string.touchpad_label) + "\n(" + click + ")");
     }
 
-    public Point getLastPosition() {
-        return mLastPos;
+    public Point getCurrentPosition() {
+        return mCurrPos;
     }
 
     public void setServerThread(Thread thread) {

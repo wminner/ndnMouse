@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.List;
 
 import edu.ucla.cs.ndnmouse.MouseActivity;
+import edu.ucla.cs.ndnmouse.R;
 
 /**
  * Class to provide UDP communication with the PC client
@@ -28,8 +29,19 @@ public class ServerUDP implements Runnable {
     private MouseActivity mActivity;
 
     private DatagramSocket mSocket;
+    private InetAddress mReplyAddr;
+    private int mReplyPort;
     private final int mPort;
     private boolean mIsRunning;
+
+    private int mPCWidth;
+    private int mPCHeight;
+    private int mPhoneWidth;
+    private int mPhoneHeight;
+    private double mRatioWidth;
+    private double mRatioHeight;
+
+    private Point mLastPos = new Point(0,0);
 
     /**
      * Constructor for server
@@ -37,9 +49,11 @@ public class ServerUDP implements Runnable {
      * @param activity of the caller (so we can get position points)
      * @param port number for server to listen on
      */
-    public ServerUDP(MouseActivity activity, int port) {
+    public ServerUDP(MouseActivity activity, int port, int width, int height) {
         mActivity = activity;
         mPort = port;
+        mPhoneWidth = width;
+        mPhoneHeight = height;
     }
 
     public void start() {
@@ -86,8 +100,8 @@ public class ServerUDP implements Runnable {
 
     private void handle(DatagramPacket packet) throws IOException {
         // Get address and port to send reply to
-        InetAddress replyAddr = packet.getAddress();
-        int replyPort = packet.getPort();
+        mReplyAddr = packet.getAddress();
+        mReplyPort = packet.getPort();
         String data = new String(packet.getData());
         // Trim null bytes off end
         data = data.substring(0, data.indexOf('\0'));
@@ -95,18 +109,63 @@ public class ServerUDP implements Runnable {
         Log.d(TAG, "Received request data: " + data);
 
         try {
-            if (data.equals("GET position\n")) {
-                while (mIsRunning) {
-                    Point lastPos = mActivity.getLastPosition();
-                    byte[] reply = (lastPos.x + "," + lastPos.y + "\n").getBytes();
-                    DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, replyAddr, replyPort);
+            if (data.startsWith("GET ")) {
+                int start = data.indexOf(' ') + 1;
+                int end = data.indexOf('\n', start);
+                String[] monitorRes = data.substring(start, end).split("x");
+                if (monitorRes.length == 2) {
+                    mPCWidth = Integer.valueOf(monitorRes[0]);
+                    mPCHeight = Integer.valueOf(monitorRes[1]);
+                    Log.d(TAG, "Client's monitor resolution is " + mPCWidth + "x" + mPCHeight);
+
+                    // Calculate ratios between server screen (phone) and client screen (pc)
+                    mRatioWidth = (float) mPCWidth / mPhoneWidth;
+                    mRatioHeight = (float) mPCHeight / mPhoneHeight;
+
+                    Log.d(TAG, "RatioWidth: " + mRatioWidth + ", RatioHeight: " + mRatioHeight);
+
+                    // Start mouse in middle of monitor
+                    byte[] reply = (mPCWidth /2 + "," + mPCHeight /2 + "\n").getBytes();
+                    DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
                     mSocket.send(replyPacket);
-                    Thread.sleep(100);
+
+                    // TODO spin off worker thread to do this work (so we don't block the server)
+                    while (mIsRunning) {
+                        Thread.sleep(100);
+                        Point currPos = mActivity.getCurrentPosition();
+                        // Skip update if no movement happened since the last update
+                        if (!currPos.equals(mLastPos)) {
+                            mLastPos.set(currPos.x, currPos.y);
+                            int scaledX = (int) (currPos.x * mRatioWidth);
+                            int scaledY = (int) (currPos.y * mRatioHeight);
+                            reply = (scaledX + "," + scaledY + "\n").getBytes();
+                            replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
+                            mSocket.send(replyPacket);
+                        }
+                    }
+                } else {
+                    Log.e(TAG, "Failed to get client's resolution!");
                 }
             }
         } catch (InterruptedException | SocketException e) {
             e.printStackTrace();
         }
+    }
+
+    public void ExecuteClick(int click) throws IOException {
+//        byte[] reply;
+//        if (click.equals(mActivity.getString(R.string.action_left_click_down))) {
+//            reply = (mActivity.getString(R.string.action_left_click_down) + "\n").getBytes();
+//        } else if (click.equals(mActivity.getString(R.string.action_right_click_down))) {
+//            reply = (mActivity.getString(R.string.action_right_click_down) + "\n").getBytes();
+//        } else {
+//            Log.e(TAG, "Improper click type: " + click);
+//            return;
+//        }
+        byte[] reply = (mActivity.getString(click)).getBytes();
+
+        DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
+        mSocket.send(replyPacket);
     }
 
     private void writeServerError(PrintStream output) {
