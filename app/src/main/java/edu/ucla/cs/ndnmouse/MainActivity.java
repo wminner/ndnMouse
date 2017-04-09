@@ -6,16 +6,25 @@ import android.content.SharedPreferences;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.preference.PreferenceManager;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.RadioButton;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import org.w3c.dom.Text;
+
+import edu.ucla.cs.ndnmouse.utilities.ServerUDP;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = MainActivity.class.getSimpleName();
 
     private static String mServerPassword = "1234";
-    private static boolean mTapToLeftClick = false;
+    private EditText mPortEditText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -23,6 +32,11 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_start);
         setupButtonCallbacks();
         setupSharedPreferences();
+
+        final TextView addressTextView = (TextView) findViewById(R.id.tv_address);
+        addressTextView.setText(ServerUDP.getIPAddress(true));
+
+        mPortEditText = (EditText) findViewById(R.id.et_port);
     }
 
     /**
@@ -33,11 +47,18 @@ public class MainActivity extends AppCompatActivity {
         startButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Context context = MainActivity.this;
-                Class destinationClass = MouseActivity.class;
-                Intent intentToStartMouseActivity = new Intent(context, destinationClass);
-                intentToStartMouseActivity.putExtra(Intent.EXTRA_TEXT, mServerPassword);
-                startActivity(intentToStartMouseActivity);
+                int port = getPort();
+                // If we got bad port, then make a Toast alerting user and give up on intent
+                if (port == -1) {
+                    Toast.makeText(MainActivity.this, "Invalid port: please enter a port number between 1 and 65535.", Toast.LENGTH_LONG).show();
+                } else {
+                    Context context = MainActivity.this;
+                    Class destinationClass = MouseActivity.class;
+                    Intent intentToStartMouseActivity = new Intent(context, destinationClass);
+                    intentToStartMouseActivity.putExtra(getString(R.string.intent_extra_port), port);
+                    intentToStartMouseActivity.putExtra(getString(R.string.intent_extra_password), mServerPassword);
+                    startActivity(intentToStartMouseActivity);
+                }
             }
         });
 
@@ -54,11 +75,55 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
+     * Gets and validates port provided by user
+     *
+     * @return port number between 1-65535, or -1 if invalid port
+     */
+    private int getPort() {
+        try {
+            int port = Integer.parseInt(mPortEditText.getText().toString());
+            Log.d(TAG, "Port is " + port);
+            if (1 <= port && port <= 65535)
+                return port;
+        } catch (NumberFormatException e) {
+            Log.e(TAG, "Invalid port: not a number.");
+            return -1;
+        }
+        Log.e(TAG, "Invalid port: out of range.");
+        return -1;
+    }
+
+    private void onRadioButtonClicked(View view) {
+        boolean checked = ((RadioButton) view).isChecked();
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+
+        switch(view.getId()) {
+        case R.id.rb_ndn:
+            if (checked) {
+                editor.putBoolean(getString(R.string.radio_button_setting), true);
+            }
+            break;
+        case R.id.rb_udp:
+            if (checked) {
+                editor.putBoolean(getString(R.string.radio_button_setting), false);
+            }
+            break;
+        }
+        editor.apply();
+    }
+
+    /**
      * Function to load preferences
      */
     private void setupSharedPreferences() {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 
-        mTapToLeftClick = sharedPreferences.getBoolean(getString(R.string.pref_tap_to_left_click_key), getResources().getBoolean(R.bool.pref_tap_to_left_click_default));
+        final RadioButton rb_ndn = (RadioButton) findViewById(R.id.rb_ndn);
+        final RadioButton rb_udp = (RadioButton) findViewById(R.id.rb_udp);
+
+        boolean ndn_radio_button_checked = sharedPreferences.getBoolean(getString(R.string.radio_button_setting), getResources().getBoolean(R.bool.pref_radio_button_ndn_default));
+        rb_ndn.setChecked(ndn_radio_button_checked);
+        rb_udp.setChecked(!ndn_radio_button_checked);
     }
 }

@@ -12,6 +12,12 @@
     <string name="protocol_label">PROTOCOL</string>
     <string name="ndn_label">NDN</string>
     <string name="alt_protocol_label">UDP</string>
+    <string name="address_placeholder">254.254.254.254</string>
+    <string name="radio_button_setting">radio_button_setting</string>
+    <string name="port_label">PORT</string>
+    <string name="default_port">10888</string>
+    <string name="intent_extra_port">EXTRA_PORT</string>
+    <string name="intent_extra_password">EXTRA_PASSWORD</string>
 
     <!--Mouse Activity-->
     <string name="left_click_label">LEFT CLICK</string>

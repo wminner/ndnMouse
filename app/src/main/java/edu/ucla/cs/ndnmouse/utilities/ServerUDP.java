@@ -153,19 +153,11 @@ public class ServerUDP implements Runnable {
     }
 
     public void ExecuteClick(int click) throws IOException {
-//        byte[] reply;
-//        if (click.equals(mActivity.getString(R.string.action_left_click_down))) {
-//            reply = (mActivity.getString(R.string.action_left_click_down) + "\n").getBytes();
-//        } else if (click.equals(mActivity.getString(R.string.action_right_click_down))) {
-//            reply = (mActivity.getString(R.string.action_right_click_down) + "\n").getBytes();
-//        } else {
-//            Log.e(TAG, "Improper click type: " + click);
-//            return;
-//        }
-        byte[] reply = (mActivity.getString(click)).getBytes();
-
-        DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
-        mSocket.send(replyPacket);
+        if (null != mReplyAddr && 0 != mReplyPort) {
+            byte[] reply = (mActivity.getString(click)).getBytes();
+            DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
+            mSocket.send(replyPacket);
+        }
     }
 
     private void writeServerError(PrintStream output) {
@@ -181,7 +173,7 @@ public class ServerUDP implements Runnable {
      * @param useIPv4 true=return ipv4, false=return ipv6
      * @return address or empty string
      */
-    private static String getIPAddress(boolean useIPv4) {
+    public static String getIPAddress(boolean useIPv4) {
         try {
             List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
             for (NetworkInterface intf : interfaces) {

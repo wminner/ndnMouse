@@ -20,23 +20,27 @@ import edu.ucla.cs.ndnmouse.utilities.ServerUDP;
 public class MouseActivity extends AppCompatActivity {
 
     private static final String TAG = MouseActivity.class.getSimpleName();
-    private static final int mPort = 10888;
 
-    private static int mTouchpadX;
-    private static int mTouchpadY;
+    private static int mPort;
+    private static String mPassword;
     private static int mTouchpadWidth;
     private static int mTouchpadHeight;
     private TextView mTouchpadTextView;
-
     private ServerUDP mServer;
     private Thread mServerThread;
 
     private Point mCurrPos;
+    private int mMovementThreshold = 5;  // In pixels, may require tuning
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_mouse);
+
+        // Get extras from Intent
+        Intent intent = getIntent();
+        mPort = intent.getIntExtra(getString(R.string.intent_extra_port), 10888);
+        mPassword = intent.getStringExtra(getString(R.string.intent_extra_password));
 
         mTouchpadTextView = (TextView) findViewById(R.id.tv_touchpad);
         // Find out upper-left coordinate, and width/height of touchpad box
@@ -44,15 +48,8 @@ public class MouseActivity extends AppCompatActivity {
         mTouchpadTextView.post(new Runnable() {
             @Override
             public void run() {
-                int[] touchpadCoords = new int[2];
-                mTouchpadTextView.getLocationOnScreen(touchpadCoords);
-                mTouchpadX = touchpadCoords[0];
-                mTouchpadY = touchpadCoords[1];
-
                 mTouchpadWidth = mTouchpadTextView.getWidth();
                 mTouchpadHeight = mTouchpadTextView.getHeight();
-                Log.d(TAG, String.format("Touchpad X is %d", mTouchpadX));
-                Log.d(TAG, String.format("Touchpad Y is %d", mTouchpadY));
                 Log.d(TAG, String.format("Touchpad width is %d", mTouchpadWidth));
                 Log.d(TAG, String.format("Touchpad height is %d", mTouchpadHeight));
 
@@ -62,7 +59,7 @@ public class MouseActivity extends AppCompatActivity {
             }
         });
 
-        setupButtonCallbacks();
+        setupCallbacks();
         mCurrPos = new Point();
     }
 
@@ -94,29 +91,10 @@ public class MouseActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        int x = (int) event.getX();
-        int y = (int) event.getY();
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                Log.d(TAG, String.format("ACTION_DOWN: %d %d", x, y));
-                break;
-            case MotionEvent.ACTION_MOVE:
-                // Log.d(TAG, String.format("ACTION_MOVE: %d %d", x, y));
-                break;
-            case MotionEvent.ACTION_UP:
-                Log.d(TAG, String.format("ACTION_UP: %d %d", x, y));
-                break;
-        }
-        displayCoordinate(x, y);
-        return true;
-    }
-
     /**
-     * Function to setup each button callback
+     * Helper function to setup each callback (for buttons and touchpad)
      */
-    private void setupButtonCallbacks() {
+    private void setupCallbacks() {
         // Left click touch down and touch up
         final Button leftClickButton = (Button) findViewById(R.id.b_left_click);
         leftClickButton.setOnTouchListener(new View.OnTouchListener() {
@@ -169,21 +147,56 @@ public class MouseActivity extends AppCompatActivity {
                 return true;
             }
         });
+
+        // Touchpad
+        mTouchpadTextView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                int x = (int) event.getX();
+                int y = (int) event.getY();
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        Log.d(TAG, String.format("ACTION_DOWN: %d %d", x, y));
+                        break;
+                    case MotionEvent.ACTION_MOVE:
+                        // Log.d(TAG, String.format("ACTION_MOVE: %d %d", x, y));
+                        break;
+                    case MotionEvent.ACTION_UP:
+                        Log.d(TAG, String.format("ACTION_UP: %d %d", x, y));
+                        break;
+                }
+                displayCoordinate(x, y);
+                updateCurrentPosition(x, y);
+                return true;
+            }
+        });
+    }
+
+    /**
+     * Update mCurrPos variable if the new position is different enough from the previous position
+     * defined by the mMovementThreashold
+     *
+     * @param x horizontal coordinate on the touchpad TextView
+     * @param y vertical coordinate on the touchpad TextView
+     */
+    private void updateCurrentPosition(int x, int y) {
+        if (Math.abs(x - mCurrPos.x) >= mMovementThreshold || Math.abs(y - mCurrPos.y) >= mMovementThreshold) {
+            mCurrPos.set(x, y);
+        }
     }
 
     /**
      * Function to display x, y coordinate on the touchpad (for debugging purposes)
      *
-     * @param x absolute horizontal coordinate on screen
-     * @param y absolute vertical coordinate on screen
+     * @param x horizontal coordinate on the touchpad TextView
+     * @param y vertical coordinate on the touchpad TextView
      */
     private void displayCoordinate(int x, int y) {
-        int relative_x = x - mTouchpadX;
-        int relative_y = y - mTouchpadY;
-        if ((0 <= relative_x && 0 <= relative_y) && (relative_x <= mTouchpadWidth && relative_y <= mTouchpadHeight)) {
-            mCurrPos.set(relative_x, relative_y);
-            String newCoord = getString(R.string.touchpad_label) +  "\n(" + relative_x + ", " + relative_y + ")";
-            mTouchpadTextView.setText(newCoord);
+        if (x != mCurrPos.x || y != mCurrPos.y) {
+            if ((0 <= x && 0 <= y) && (x <= mTouchpadWidth && y <= mTouchpadHeight)) {
+                String newCoord = getString(R.string.touchpad_label) + "\n(" + x + ", " + y + ")";
+                mTouchpadTextView.setText(newCoord);
+            }
         }
     }
 
@@ -193,12 +206,6 @@ public class MouseActivity extends AppCompatActivity {
      * @param click either "left_click" or "right_click", found in res/values/strings.xml
      */
     private void displayClick(String click) {
-//        String newClick = "";
-//        if (click.equals(getString(R.string.action_left_click_down))) {
-//            newClick = getString(R.string.action_left_click_down);
-//        } else if (click.equals(getString(R.string.action_right_click_down))) {
-//            newClick = getString(R.string.action_right_click_down);
-//        }
         mTouchpadTextView.setText(getString(R.string.touchpad_label) + "\n(" + click + ")");
     }
 
