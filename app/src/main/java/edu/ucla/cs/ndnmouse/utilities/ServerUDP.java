@@ -4,7 +4,6 @@ import android.graphics.Point;
 import android.util.Log;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -14,7 +13,6 @@ import java.util.Collections;
 import java.util.List;
 
 import edu.ucla.cs.ndnmouse.MouseActivity;
-import edu.ucla.cs.ndnmouse.R;
 
 /**
  * Class to provide UDP communication with the PC client
@@ -26,13 +24,14 @@ public class ServerUDP implements Runnable {
 
     private static final String TAG = ServerUDP.class.getSimpleName();
 
-    private MouseActivity mActivity;
+    private MouseActivity mMouseActivity;
 
     private DatagramSocket mSocket;
     private InetAddress mReplyAddr;
     private int mReplyPort;
     private final int mPort;
     private boolean mIsRunning;
+    private boolean mUseRelativeMovement;
 
     private int mPCWidth;
     private int mPCHeight;
@@ -49,17 +48,19 @@ public class ServerUDP implements Runnable {
      * @param activity of the caller (so we can get position points)
      * @param port number for server to listen on
      */
-    public ServerUDP(MouseActivity activity, int port, int width, int height) {
-        mActivity = activity;
+    public ServerUDP(MouseActivity activity, int port, int width, int height, boolean useRelativeMovement) {
+        mMouseActivity = activity;
         mPort = port;
         mPhoneWidth = width;
         mPhoneHeight = height;
+        mUseRelativeMovement = useRelativeMovement;
+        Log.d(TAG, "Relative movement set to " + useRelativeMovement);
     }
 
     public void start() {
         mIsRunning = true;
         new Thread(this).start();
-        mActivity.setServerThread(Thread.currentThread());
+        mMouseActivity.setServerThread(Thread.currentThread());
         Log.d(TAG, "Started UDP server... " + getIPAddress(true) + ":" + mPort);
     }
 
@@ -116,7 +117,7 @@ public class ServerUDP implements Runnable {
                 if (monitorRes.length == 2) {
                     mPCWidth = Integer.valueOf(monitorRes[0]);
                     mPCHeight = Integer.valueOf(monitorRes[1]);
-                    Log.d(TAG, "Client's monitor resolution is " + mPCWidth + "x" + mPCHeight);
+                    // Log.d(TAG, "Client's monitor resolution is " + mPCWidth + "x" + mPCHeight);
 
                     // Calculate ratios between server screen (phone) and client screen (pc)
                     mRatioWidth = (float) mPCWidth / mPhoneWidth;
@@ -125,23 +126,36 @@ public class ServerUDP implements Runnable {
                     Log.d(TAG, "RatioWidth: " + mRatioWidth + ", RatioHeight: " + mRatioHeight);
 
                     // Start mouse in middle of monitor
-                    byte[] reply = (mPCWidth /2 + "," + mPCHeight /2 + "\n").getBytes();
+                    byte[] reply = ("ABS " + mPCWidth/2 + "," + mPCHeight/2 + "\n").getBytes();
                     DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
                     mSocket.send(replyPacket);
 
                     // TODO spin off worker thread to do this work (so we don't block the server)
                     while (mIsRunning) {
                         Thread.sleep(100);
-                        Point currPos = mActivity.getCurrentPosition();
-                        // Skip update if no movement happened since the last update
-                        if (!currPos.equals(mLastPos)) {
-                            mLastPos.set(currPos.x, currPos.y);
-                            int scaledX = (int) (currPos.x * mRatioWidth);
-                            int scaledY = (int) (currPos.y * mRatioHeight);
-                            reply = (scaledX + "," + scaledY + "\n").getBytes();
-                            replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
-                            mSocket.send(replyPacket);
+                        Point position;
+                        String moveType;
+                        if (mUseRelativeMovement) {
+                            position = mMouseActivity.getRelativePosition();
+                            moveType = "REL";
+                            // Skip update if no relative movement since last update
+                            if (position.equals(0, 0))
+                                continue;
+                        } else {
+                            position = mMouseActivity.getAbsolutePosition();
+                            moveType = "ABS";
+                            // Skip update if no movement happened since the last update
+                            if (position.equals(mLastPos)) {
+                                continue;
+                            } else
+                                mLastPos.set(position.x, position.y);
                         }
+                        int scaledX = (int) (position.x * mRatioWidth);
+                        int scaledY = (int) (position.y * mRatioHeight);
+                        reply = (moveType + " " + scaledX + "," + scaledY + "\n").getBytes();
+                        Log.d(TAG, "Sending update: " + moveType + " " + scaledX + "," + scaledY + "\n");
+                        replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
+                        mSocket.send(replyPacket);
                     }
                 } else {
                     Log.e(TAG, "Failed to get client's resolution!");
@@ -154,15 +168,10 @@ public class ServerUDP implements Runnable {
 
     public void ExecuteClick(int click) throws IOException {
         if (null != mReplyAddr && 0 != mReplyPort) {
-            byte[] reply = (mActivity.getString(click)).getBytes();
+            byte[] reply = (mMouseActivity.getString(click)).getBytes();
             DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
             mSocket.send(replyPacket);
         }
-    }
-
-    private void writeServerError(PrintStream output) {
-        output.println("HTTP/1.0 500 Internal Server Error");
-        output.flush();;
     }
 
     /**

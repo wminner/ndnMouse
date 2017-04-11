@@ -93,7 +93,7 @@ public class MainActivity extends AppCompatActivity {
         return -1;
     }
 
-    private void onRadioButtonClicked(View view) {
+    public void onRadioButtonClicked(View view) {
         boolean checked = ((RadioButton) view).isChecked();
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         SharedPreferences.Editor editor = sharedPreferences.edit();

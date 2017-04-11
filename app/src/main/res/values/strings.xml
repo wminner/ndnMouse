@@ -39,6 +39,7 @@
     <!--Preference Key/Values-->
     <string name="pref_tap_to_left_click_key" translatable="false">tap_to_left_click</string>
     <string name="pref_movement_key" translatable="false">pref_movement</string>
+    <string name="pref_movement_default" translatable="false">move_relative</string>
     <string name="pref_move_rel_value" translatable="false">move_relative</string>
     <string name="pref_move_abs_value" translatable="false">move_absolute</string>
 

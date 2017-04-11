@@ -31,8 +31,15 @@ def main(argv):
 				handleClick(click, updown)
 			# Otherwise assume position and set the mouse coordinate
 			else:
-				x, y = [int(i) for i in data.decode().rstrip().split(',')]
-				pyautogui.moveTo(x, y)
+				move_type = clean_data[:3]
+				position = clean_data[4:]
+				x, y = [int(i) for i in position.split(',')]
+
+				# Move mouse according to move_type (relative or absolute)
+				if (move_type == "REL"):
+					pyautogui.moveRel(x, y, 0.1)
+				elif (move_type == "ABS"):
+					pyautogui.moveTo(x, y, 0.1)
 			
 			print("Received from server {0}:{1}: {2}".format(server[0], server[1], data))
 

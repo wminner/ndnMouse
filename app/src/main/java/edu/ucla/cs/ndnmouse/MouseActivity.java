@@ -1,9 +1,11 @@
 package edu.ucla.cs.ndnmouse;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Point;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.preference.PreferenceManager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -17,7 +19,7 @@ import java.io.IOException;
 
 import edu.ucla.cs.ndnmouse.utilities.ServerUDP;
 
-public class MouseActivity extends AppCompatActivity {
+public class MouseActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
 
     private static final String TAG = MouseActivity.class.getSimpleName();
 
@@ -29,13 +31,18 @@ public class MouseActivity extends AppCompatActivity {
     private ServerUDP mServer;
     private Thread mServerThread;
 
-    private Point mCurrPos;
+    private Point mAbsolutePos;
+    private Point mLastRelativePos;
+    private boolean mBufferAbsPos = true;
+    private boolean mTouchDown = false;
     private int mMovementThreshold = 5;  // In pixels, may require tuning
+    private boolean mUseRelativeMovement = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_mouse);
+        setupSharedPreferences();
 
         // Get extras from Intent
         Intent intent = getIntent();
@@ -54,13 +61,14 @@ public class MouseActivity extends AppCompatActivity {
                 Log.d(TAG, String.format("Touchpad height is %d", mTouchpadHeight));
 
                 // Create and start mServer
-                mServer = new ServerUDP(MouseActivity.this, mPort, mTouchpadWidth, mTouchpadHeight);
+                mServer = new ServerUDP(MouseActivity.this, mPort, mTouchpadWidth, mTouchpadHeight, mUseRelativeMovement);
                 mServer.start();
             }
         });
 
         setupCallbacks();
-        mCurrPos = new Point();
+        mAbsolutePos = new Point();
+        mLastRelativePos = new Point();
     }
 
     @Override
@@ -89,6 +97,23 @@ public class MouseActivity extends AppCompatActivity {
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+        if (key.equals(getString(R.string.pref_movement_key))) {
+            String movement = sharedPreferences.getString(getString(R.string.pref_movement_key), getResources().getString(R.string.pref_movement_default));
+            mUseRelativeMovement = !movement.equals(getString(R.string.pref_move_abs_value));
+        }
+    }
+
+    /**
+     * Helper function to setup preferences from Settings activity
+     */
+    private void setupSharedPreferences() {
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        String movement = sharedPreferences.getString(getString(R.string.pref_movement_key), getResources().getString(R.string.pref_movement_default));
+        mUseRelativeMovement = !movement.equals(getString(R.string.pref_move_abs_value));
     }
 
     /**
@@ -154,34 +179,39 @@ public class MouseActivity extends AppCompatActivity {
             public boolean onTouch(View v, MotionEvent event) {
                 int x = (int) event.getX();
                 int y = (int) event.getY();
+                updateAbsolutePosition(x, y);
+
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
                         Log.d(TAG, String.format("ACTION_DOWN: %d %d", x, y));
+                        mTouchDown = true;
                         break;
                     case MotionEvent.ACTION_MOVE:
                         // Log.d(TAG, String.format("ACTION_MOVE: %d %d", x, y));
                         break;
                     case MotionEvent.ACTION_UP:
                         Log.d(TAG, String.format("ACTION_UP: %d %d", x, y));
+                        mTouchDown = false;
+                        // Need to buffer an absolute position next time relative difference needs to be calculated
+                        mBufferAbsPos = true;
                         break;
                 }
                 displayCoordinate(x, y);
-                updateCurrentPosition(x, y);
                 return true;
             }
         });
     }
 
     /**
-     * Update mCurrPos variable if the new position is different enough from the previous position
+     * Update mAbsolutePos variable if the new position is different enough from the previous position
      * defined by the mMovementThreashold
      *
      * @param x horizontal coordinate on the touchpad TextView
      * @param y vertical coordinate on the touchpad TextView
      */
-    private void updateCurrentPosition(int x, int y) {
-        if (Math.abs(x - mCurrPos.x) >= mMovementThreshold || Math.abs(y - mCurrPos.y) >= mMovementThreshold) {
-            mCurrPos.set(x, y);
+    private void updateAbsolutePosition(int x, int y) {
+        if (Math.abs(x - mAbsolutePos.x) >= mMovementThreshold || Math.abs(y - mAbsolutePos.y) >= mMovementThreshold) {
+            mAbsolutePos.set(x, y);
         }
     }
 
@@ -192,7 +222,7 @@ public class MouseActivity extends AppCompatActivity {
      * @param y vertical coordinate on the touchpad TextView
      */
     private void displayCoordinate(int x, int y) {
-        if (x != mCurrPos.x || y != mCurrPos.y) {
+        if (x != mAbsolutePos.x || y != mAbsolutePos.y) {
             if ((0 <= x && 0 <= y) && (x <= mTouchpadWidth && y <= mTouchpadHeight)) {
                 String newCoord = getString(R.string.touchpad_label) + "\n(" + x + ", " + y + ")";
                 mTouchpadTextView.setText(newCoord);
@@ -209,8 +239,24 @@ public class MouseActivity extends AppCompatActivity {
         mTouchpadTextView.setText(getString(R.string.touchpad_label) + "\n(" + click + ")");
     }
 
-    public Point getCurrentPosition() {
-        return mCurrPos;
+    public Point getAbsolutePosition() {
+        return mAbsolutePos;
+    }
+
+    public Point getRelativePosition() {
+        Point relativeDiff = new Point(0, 0);
+        // Only calculate relative difference if user has been touching and dragging across touchpad
+        // in order to behave the same as a laptop trackpad
+        if (mTouchDown) {
+            // If true, then don't calculate the relative difference (let the absolute position buffer for one round)
+            // This prevents a jump in position if the user lifts and touches down in a different spot
+            if (mBufferAbsPos)
+                mBufferAbsPos = false;
+            else
+                relativeDiff.set(mAbsolutePos.x - mLastRelativePos.x, mAbsolutePos.y - mLastRelativePos.y);
+        }
+        mLastRelativePos.set(mAbsolutePos.x, mAbsolutePos.y);
+        return relativeDiff;
     }
 
     public void setServerThread(Thread thread) {

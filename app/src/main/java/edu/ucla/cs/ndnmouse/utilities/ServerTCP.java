@@ -112,7 +112,7 @@ public class ServerTCP implements Runnable {
             // Send out the content
             // TODO bad form
             while (mIsRunning) {
-                Point lastPos = mActivity.getCurrentPosition();
+                Point lastPos = mActivity.getAbsolutePosition();
                 output.write((lastPos.x + "," + lastPos.y + "\n").getBytes());
                 output.flush();
                 Thread.sleep(100);
