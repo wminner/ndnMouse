@@ -28,6 +28,7 @@
     <string name="action_left_click_up">CLICK left up</string>
     <string name="action_right_click_down">CLICK right down</string>
     <string name="action_right_click_up">CLICK right up</string>
+    <string name="action_left_click_full">CLICK left full</string>
     <string name="action_keyboard">Keyboard</string>
 
     <!--Settings Activity-->

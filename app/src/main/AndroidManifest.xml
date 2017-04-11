@@ -28,6 +28,7 @@
         <activity
             android:name=".MouseActivity"
             android:configChanges="orientation|keyboardHidden"
+            android:launchMode="singleTop"
             android:label="@string/mouse_label"
             android:parentActivityName=".MainActivity"
             android:screenOrientation="portrait"

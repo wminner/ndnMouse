@@ -16,6 +16,7 @@ import android.widget.Button;
 import android.widget.TextView;
 
 import java.io.IOException;
+import java.util.Calendar;
 
 import edu.ucla.cs.ndnmouse.utilities.ServerUDP;
 
@@ -31,12 +32,20 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     private ServerUDP mServer;
     private Thread mServerThread;
 
-    private Point mAbsolutePos;
-    private Point mLastRelativePos;
+    // Relative and absolute movement variables
+    private Point mAbsPos;
+    private Point mLastRelPos;
     private boolean mBufferAbsPos = true;
     private boolean mTouchDown = false;
-    private int mMovementThreshold = 5;  // In pixels, may require tuning
     private boolean mUseRelativeMovement = true;
+    private static final int mMinMovementPixelThreshold = 5;  // May require a user setting or tuning
+
+    // Tap to left click variables
+    private boolean mTapToLeftClick = false;
+    private long mTouchDownTime = -1;
+    private Point mTouchDownPos;
+    private static final long mTapClickMillisThreshold = 500; // May require a user setting or tuning
+    private static final int mTapClickPixelThreshold = 5;     // May require tuning
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,8 +76,9 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         });
 
         setupCallbacks();
-        mAbsolutePos = new Point();
-        mLastRelativePos = new Point();
+        mAbsPos = new Point();
+        mLastRelPos = new Point();
+        mTouchDownPos = new Point();
     }
 
     @Override
@@ -87,11 +97,12 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
-        if (id == R.id.action_settings) {
-            Intent startSettingsActivity = new Intent(this, SettingsActivity.class);
-            startActivity(startSettingsActivity);
-            return true;
-        } else if (id == R.id.action_keyboard) {
+//        if (id == R.id.action_settings) {
+//            Intent startSettingsActivity = new Intent(this, SettingsActivity.class);
+//            startActivity(startSettingsActivity);
+//            return true;
+//        }
+        if (id == R.id.action_keyboard) {
             Intent startKeyboardActivity = new Intent(this, KeyboardActivity.class);
             startActivity(startKeyboardActivity);
             return true;
@@ -102,8 +113,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
         if (key.equals(getString(R.string.pref_movement_key))) {
-            String movement = sharedPreferences.getString(getString(R.string.pref_movement_key), getResources().getString(R.string.pref_movement_default));
+            String movement = sharedPreferences.getString(key, getResources().getString(R.string.pref_movement_default));
             mUseRelativeMovement = !movement.equals(getString(R.string.pref_move_abs_value));
+        } else if (key.equals(getString(R.string.pref_tap_to_left_click_key))) {
+            mTapToLeftClick = sharedPreferences.getBoolean(key, getResources().getBoolean(R.bool.pref_tap_to_left_click_default));
         }
     }
 
@@ -114,6 +127,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         String movement = sharedPreferences.getString(getString(R.string.pref_movement_key), getResources().getString(R.string.pref_movement_default));
         mUseRelativeMovement = !movement.equals(getString(R.string.pref_move_abs_value));
+        mTapToLeftClick = sharedPreferences.getBoolean(getString(R.string.pref_tap_to_left_click_key), getResources().getBoolean(R.bool.pref_tap_to_left_click_default));
     }
 
     /**
@@ -179,23 +193,39 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             public boolean onTouch(View v, MotionEvent event) {
                 int x = (int) event.getX();
                 int y = (int) event.getY();
-                updateAbsolutePosition(x, y);
 
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
-                        Log.d(TAG, String.format("ACTION_DOWN: %d %d", x, y));
+                        mTouchDownTime = Calendar.getInstance().getTimeInMillis();
+                        mTouchDownPos.set(x, y);
                         mTouchDown = true;
+
+                        Log.d(TAG, String.format("ACTION_DOWN: %d %d", x, y));
                         break;
                     case MotionEvent.ACTION_MOVE:
                         // Log.d(TAG, String.format("ACTION_MOVE: %d %d", x, y));
                         break;
                     case MotionEvent.ACTION_UP:
-                        Log.d(TAG, String.format("ACTION_UP: %d %d", x, y));
+                        // Check if user tapped (for tap-to-click)
+                        if (mTapToLeftClick && ((Math.abs(x - mTouchDownPos.x) <= mTapClickPixelThreshold) && (Math.abs(y - mTouchDownPos.y) <= mTapClickPixelThreshold))) {
+                            long now = Calendar.getInstance().getTimeInMillis();
+                            if (now - mTouchDownTime <= mTapClickMillisThreshold) {
+                                try {
+                                    mServer.ExecuteClick(R.string.action_left_click_full);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
                         mTouchDown = false;
                         // Need to buffer an absolute position next time relative difference needs to be calculated
                         mBufferAbsPos = true;
+
+                        Log.d(TAG, String.format("ACTION_UP: %d %d", x, y));
                         break;
                 }
+
+                updateAbsolutePosition(x, y);
                 displayCoordinate(x, y);
                 return true;
             }
@@ -203,15 +233,15 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     }
 
     /**
-     * Update mAbsolutePos variable if the new position is different enough from the previous position
+     * Update mAbsPos variable if the new position is different enough from the previous position
      * defined by the mMovementThreashold
      *
      * @param x horizontal coordinate on the touchpad TextView
      * @param y vertical coordinate on the touchpad TextView
      */
     private void updateAbsolutePosition(int x, int y) {
-        if (Math.abs(x - mAbsolutePos.x) >= mMovementThreshold || Math.abs(y - mAbsolutePos.y) >= mMovementThreshold) {
-            mAbsolutePos.set(x, y);
+        if (Math.abs(x - mAbsPos.x) >= mMinMovementPixelThreshold || Math.abs(y - mAbsPos.y) >= mMinMovementPixelThreshold) {
+            mAbsPos.set(x, y);
         }
     }
 
@@ -222,7 +252,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
      * @param y vertical coordinate on the touchpad TextView
      */
     private void displayCoordinate(int x, int y) {
-        if (x != mAbsolutePos.x || y != mAbsolutePos.y) {
+        if (x != mAbsPos.x || y != mAbsPos.y) {
             if ((0 <= x && 0 <= y) && (x <= mTouchpadWidth && y <= mTouchpadHeight)) {
                 String newCoord = getString(R.string.touchpad_label) + "\n(" + x + ", " + y + ")";
                 mTouchpadTextView.setText(newCoord);
@@ -240,7 +270,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     }
 
     public Point getAbsolutePosition() {
-        return mAbsolutePos;
+        return mAbsPos;
     }
 
     public Point getRelativePosition() {
@@ -253,9 +283,9 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             if (mBufferAbsPos)
                 mBufferAbsPos = false;
             else
-                relativeDiff.set(mAbsolutePos.x - mLastRelativePos.x, mAbsolutePos.y - mLastRelativePos.y);
+                relativeDiff.set(mAbsPos.x - mLastRelPos.x, mAbsPos.y - mLastRelPos.y);
         }
-        mLastRelativePos.set(mAbsolutePos.x, mAbsolutePos.y);
+        mLastRelPos.set(mAbsPos.x, mAbsPos.y);
         return relativeDiff;
     }
 

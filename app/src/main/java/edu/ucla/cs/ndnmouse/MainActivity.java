@@ -62,16 +62,16 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-//        final ImageButton optionsButton = (ImageButton) findViewById(R.id.b_options);
-//        optionsButton.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                Context context = MainActivity.this;
-//                Class destinationClass = SettingsActivity.class;
-//                Intent intentToStartOptionsActivity = new Intent(context, destinationClass);
-//                startActivity(intentToStartOptionsActivity);
-//            }
-//        });
+        final ImageButton optionsButton = (ImageButton) findViewById(R.id.b_options);
+        optionsButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Context context = MainActivity.this;
+                Class destinationClass = SettingsActivity.class;
+                Intent intentToStartOptionsActivity = new Intent(context, destinationClass);
+                startActivity(intentToStartOptionsActivity);
+            }
+        });
     }
 
     /**

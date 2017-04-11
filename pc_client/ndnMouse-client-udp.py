@@ -7,6 +7,7 @@ import pyautogui
 def main(argv):
 	pyautogui.FAILSAFE = False
 	screen_size = pyautogui.size()
+	transition_time = 0.1
 
 	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	bind_address = ('', 10888)
@@ -37,9 +38,9 @@ def main(argv):
 
 				# Move mouse according to move_type (relative or absolute)
 				if (move_type == "REL"):
-					pyautogui.moveRel(x, y, 0.1)
+					pyautogui.moveRel(x, y, transition_time)
 				elif (move_type == "ABS"):
-					pyautogui.moveTo(x, y, 0.1)
+					pyautogui.moveTo(x, y, transition_time)
 			
 			print("Received from server {0}:{1}: {2}".format(server[0], server[1], data))
 
@@ -57,6 +58,8 @@ def handleClick(click, updown):
 		pyautogui.mouseUp(button=click)
 	elif updown == "down":
 		pyautogui.mouseDown(button=click)
+	elif updown == "full":
+		pyautogui.click(button=click)
 	else:
 		print("Invalid click type: {0} {1}".format(click, updown))
 
