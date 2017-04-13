@@ -1,6 +1,7 @@
 package edu.ucla.cs.ndnmouse.utilities;
 
 import android.graphics.Point;
+import android.provider.ContactsContract;
 import android.util.Log;
 
 import java.io.IOException;
@@ -10,6 +11,7 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 import edu.ucla.cs.ndnmouse.MouseActivity;
@@ -27,20 +29,21 @@ public class ServerUDP implements Runnable {
     private MouseActivity mMouseActivity;
 
     private DatagramSocket mSocket;
-    private InetAddress mReplyAddr;
-    private int mReplyPort;
+    // private InetAddress mReplyAddr;
+    // private int mReplyPort;
     private final int mPort;
-    private boolean mIsRunning;
+    private boolean mServerIsRunning = false;
     private boolean mUseRelativeMovement;
 
-    private int mPCWidth;
-    private int mPCHeight;
+    // private int mPCWidth;
+    // private int mPCHeight;
     private int mPhoneWidth;
     private int mPhoneHeight;
-    private double mRatioWidth;
-    private double mRatioHeight;
+    // private float mRatioWidth;
+    // private float mRatioHeight;
 
-    private Point mLastPos = new Point(0,0);
+    //private Point mLastPos = new Point(0,0);
+    HashMap<InetAddress, WorkerThread> mClientThreads;
 
     /**
      * Constructor for server
@@ -55,23 +58,33 @@ public class ServerUDP implements Runnable {
         mPhoneHeight = height;
         mUseRelativeMovement = useRelativeMovement;
         Log.d(TAG, "Relative movement set to " + useRelativeMovement);
+
+        mClientThreads = new HashMap<InetAddress, WorkerThread>();
     }
 
     public void start() {
-        mIsRunning = true;
-        new Thread(this).start();
-        mMouseActivity.setServerThread(Thread.currentThread());
+        mServerIsRunning = true;
+        Thread thread = new Thread(this);
+        thread.start();
+        mMouseActivity.setServerThread(thread);
         Log.d(TAG, "Started UDP server... " + getIPAddress(true) + ":" + mPort);
     }
 
     public void stop() {
         try {
-            mIsRunning = false;
+            mServerIsRunning = false;
+            // Stop all client threads
+            for (WorkerThread client : mClientThreads.values()) {
+                client.stop();
+            }
+            mClientThreads.clear();
+
+            // Close the shared socket
             if (null != mSocket) {
                 mSocket.close();
                 mSocket = null;
             }
-            Log.d(TAG, "Stopped UDP server...");
+            Log.d(TAG, "Stopped UDP listener...");
         } catch (Exception e) {
             Log.e(TAG, "Error closing the server socket.", e);
         }
@@ -81,96 +94,44 @@ public class ServerUDP implements Runnable {
     public void run() {
         try {
             mSocket = new DatagramSocket(mPort);
-            while (mIsRunning) {
+            while (mServerIsRunning) {
                 byte[] buf = new byte[64];
-
                 // Get request
                 DatagramPacket packet = new DatagramPacket(buf, buf.length);
                 mSocket.receive(packet);  // Blocks program flow
-                Log.d(TAG, "Received client request...");
 
-                // Process request and send reply
-                handle(packet);
+                // Check message for new client
+                String data = new String(packet.getData());
+                // Trim null bytes off end
+                data = data.substring(0, data.indexOf('\0'));
+
+                // If new client...
+                if (data.startsWith("GET ")) {
+                    // Start a new worker thread to handle updates, and store its reference
+                    WorkerThread worker = new WorkerThread(mSocket, packet);
+                    mClientThreads.put(packet.getAddress(), worker);
+
+                // Otherwise if existing client no longer wants updates...
+                } else if (data.startsWith("STOP")) {
+                    // Look up its thread and stop it
+                    if (mClientThreads.containsKey(packet.getAddress())) {
+                        mClientThreads.get(packet.getAddress()).stop();
+                        mClientThreads.remove(packet.getAddress());
+                    }
+                }
             }
-        } catch (SocketException e) {
-            Log.d(TAG, "Socket got disconnected!");
         } catch (IOException e) {
             Log.e(TAG, "Web server error.", e);
         }
     }
 
-    private void handle(DatagramPacket packet) throws IOException {
-        // Get address and port to send reply to
-        mReplyAddr = packet.getAddress();
-        mReplyPort = packet.getPort();
-        String data = new String(packet.getData());
-        // Trim null bytes off end
-        data = data.substring(0, data.indexOf('\0'));
-
-        Log.d(TAG, "Received request data: " + data);
-
-        try {
-            if (data.startsWith("GET ")) {
-                int start = data.indexOf(' ') + 1;
-                int end = data.indexOf('\n', start);
-                String[] monitorRes = data.substring(start, end).split("x");
-                if (monitorRes.length == 2) {
-                    mPCWidth = Integer.valueOf(monitorRes[0]);
-                    mPCHeight = Integer.valueOf(monitorRes[1]);
-                    // Log.d(TAG, "Client's monitor resolution is " + mPCWidth + "x" + mPCHeight);
-
-                    // Calculate ratios between server screen (phone) and client screen (pc)
-                    mRatioWidth = (float) mPCWidth / mPhoneWidth;
-                    mRatioHeight = (float) mPCHeight / mPhoneHeight;
-
-                    Log.d(TAG, "RatioWidth: " + mRatioWidth + ", RatioHeight: " + mRatioHeight);
-
-                    // Start mouse in middle of monitor
-                    byte[] reply = ("ABS " + mPCWidth/2 + "," + mPCHeight/2 + "\n").getBytes();
-                    DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
-                    mSocket.send(replyPacket);
-
-                    // TODO spin off worker thread to do this work (so we don't block the server)
-                    while (mIsRunning) {
-                        Thread.sleep(100);
-                        Point position;
-                        String moveType;
-                        if (mUseRelativeMovement) {
-                            position = mMouseActivity.getRelativePosition();
-                            moveType = "REL";
-                            // Skip update if no relative movement since last update
-                            if (position.equals(0, 0))
-                                continue;
-                        } else {
-                            position = mMouseActivity.getAbsolutePosition();
-                            moveType = "ABS";
-                            // Skip update if no movement happened since the last update
-                            if (position.equals(mLastPos)) {
-                                continue;
-                            } else
-                                mLastPos.set(position.x, position.y);
-                        }
-                        int scaledX = (int) (position.x * mRatioWidth);
-                        int scaledY = (int) (position.y * mRatioHeight);
-                        reply = (moveType + " " + scaledX + "," + scaledY + "\n").getBytes();
-                        Log.d(TAG, "Sending update: " + moveType + " " + scaledX + "," + scaledY + "\n");
-                        replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
-                        mSocket.send(replyPacket);
-                    }
-                } else {
-                    Log.e(TAG, "Failed to get client's resolution!");
-                }
-            }
-        } catch (InterruptedException | SocketException e) {
-            e.printStackTrace();
-        }
-    }
-
     public void ExecuteClick(int click) throws IOException {
-        if (null != mReplyAddr && 0 != mReplyPort) {
-            byte[] reply = (mMouseActivity.getString(click)).getBytes();
-            DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
-            mSocket.send(replyPacket);
+        for (WorkerThread client : mClientThreads.values()) {
+            if (null != client.mReplyAddr && 0 != client.mReplyPort) {
+                byte[] reply = (mMouseActivity.getString(click)).getBytes();
+                DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, client.mReplyAddr, client.mReplyPort);
+                mSocket.send(replyPacket);
+            }
         }
     }
 
@@ -208,5 +169,132 @@ public class ServerUDP implements Runnable {
             e.printStackTrace();
         }
         return "";
+    }
+
+    /**
+     * Server parent thread spins off worker threads to do the actual transmissions
+     */
+    private class WorkerThread implements Runnable {
+
+        private boolean mWorkerIsRunning = false;
+
+        private final DatagramSocket mSocket;
+        final InetAddress mReplyAddr;
+        final int mReplyPort;
+
+        private int mPCWidth;
+        private int mPCHeight;
+        private float mRatioWidth;
+        private float mRatioHeight;
+
+        private Point mLastPos = new Point(0, 0);
+
+        public WorkerThread(DatagramSocket socket, DatagramPacket packet) throws SocketException {
+            mSocket = socket;
+            // Get address and port to send reply to
+            mReplyAddr = packet.getAddress();
+            mReplyPort = packet.getPort();
+
+            if (parseInitialRequest(packet))
+                start();
+            else
+                stop();
+        }
+
+        /**
+         * Constructs the class, then spins it off into its own thread to do the rest of the
+         * position updates
+         */
+        public void start() {
+            mWorkerIsRunning = true;
+            new Thread(this).start();
+            Log.d(TAG, "Started worker thread for client " + mReplyAddr + ":" + mReplyPort);
+        }
+
+        /**
+         * Stops the thread, but don't close the shared socket
+         */
+        public void stop() {
+            try {
+                mWorkerIsRunning = false;
+                Log.d(TAG, "Stopped worker thread for client " + mReplyAddr + ":" + mReplyPort);
+            } catch (Exception e) {
+                Log.e(TAG, "Error closing the worker thread socket.", e);
+            }
+        }
+
+        /**
+         * Parses the initial GET packet and retrieves necessary info in order to respond correctly
+         *
+         * @param initPacket initial packet that the client sends to the server to get position updates
+         * @return true if all parsing completed successfully, otherwise false
+         */
+        private boolean parseInitialRequest(DatagramPacket initPacket) {
+            String data = new String(initPacket.getData());
+            // Trim null bytes off end
+            data = data.substring(0, data.indexOf('\0'));
+
+            Log.d(TAG, "Received request data: " + data);
+
+            if (data.startsWith("GET ")) {
+                int start = data.indexOf(' ') + 1;
+                int end = data.indexOf('\n', start);
+                String[] monitorRes = data.substring(start, end).split("x");
+                if (monitorRes.length == 2) {
+                    mPCWidth = Integer.valueOf(monitorRes[0]);
+                    mPCHeight = Integer.valueOf(monitorRes[1]);
+                    // Log.d(TAG, "Client's monitor resolution is " + mPCWidth + "x" + mPCHeight);
+
+                    // Calculate ratios between server screen (phone) and client screen (pc)
+                    mRatioWidth = (float) mPCWidth / mPhoneWidth;
+                    mRatioHeight = (float) mPCHeight / mPhoneHeight;
+
+                    Log.d(TAG, "RatioWidth: " + mRatioWidth + ", RatioHeight: " + mRatioHeight);
+                }
+            } else {
+                Log.e(TAG, "Failed to get client's resolution!");
+                return false;
+            }
+            return true;
+        }
+
+        @Override
+        public void run() {
+            try {
+                // Start mouse in middle of monitor
+                byte[] reply = ("ABS " + mPCWidth/2 + "," + mPCHeight/2 + "\n").getBytes();
+                DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
+                mSocket.send(replyPacket);
+
+                while (mWorkerIsRunning) {
+                    Thread.sleep(100);
+                    Point position;
+                    String moveType;
+                    if (mUseRelativeMovement) {
+                        position = mMouseActivity.getRelativePosition();
+                        moveType = "REL";
+                        // Skip update if no relative movement since last update
+                        if (position.equals(0, 0))
+                            continue;
+                    } else {
+                        position = mMouseActivity.getAbsolutePosition();
+                        moveType = "ABS";
+                        // Skip update if no movement happened since the last update
+                        if (position.equals(mLastPos)) {
+                            continue;
+                        } else
+                            mLastPos.set(position.x, position.y);
+                    }
+                    int scaledX = (int) (position.x * mRatioWidth);
+                    int scaledY = (int) (position.y * mRatioHeight);
+                    reply = (moveType + " " + scaledX + "," + scaledY + "\n").getBytes();
+                    Log.d(TAG, "Sending update: " + moveType + " " + scaledX + "," + scaledY + "\n");
+                    replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
+                    mSocket.send(replyPacket);
+                }
+            } catch (InterruptedException | IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

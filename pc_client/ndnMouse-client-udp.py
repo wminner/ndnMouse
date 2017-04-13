@@ -30,22 +30,14 @@ def main(argv):
 			if clean_data.startswith("CLICK "):
 				_, click, updown = clean_data.split(' ')
 				handleClick(click, updown)
-			# Otherwise assume position and set the mouse coordinate
+			# Otherwise assume move command
 			else:
-				move_type = clean_data[:3]
-				position = clean_data[4:]
-				x, y = [int(i) for i in position.split(',')]
-
-				# Move mouse according to move_type (relative or absolute)
-				if (move_type == "REL"):
-					pyautogui.moveRel(x, y, transition_time)
-				elif (move_type == "ABS"):
-					pyautogui.moveTo(x, y, transition_time)
+				handleMove(clean_data)
 			
 			print("Received from server {0}:{1}: {2}".format(server[0], server[1], data))
 
 	finally:
-		message = b"STOP position\n"
+		message = b"STOP\n"
 		print("Sending message: {0}".format(message))
 		sock.sendto(message, server_address)
 		
@@ -62,6 +54,18 @@ def handleClick(click, updown):
 		pyautogui.click(button=click)
 	else:
 		print("Invalid click type: {0} {1}".format(click, updown))
+
+
+def handleMove(data):
+	move_type = data[:3]
+	position = data[4:]
+	x, y = [int(i) for i in position.split(',')]
+
+	# Move mouse according to move_type (relative or absolute)
+	if (move_type == "REL"):
+		pyautogui.moveRel(x, y, transition_time)
+	elif (move_type == "ABS"):
+		pyautogui.moveTo(x, y, transition_time)
 
 
 # Strip off script name in arg list
