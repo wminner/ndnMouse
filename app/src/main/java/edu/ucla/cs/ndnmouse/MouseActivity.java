@@ -226,7 +226,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                 }
 
                 updateAbsolutePosition(x, y);
-                displayCoordinate(x, y);
+                displayCoordinate();
                 return true;
             }
         });
@@ -247,17 +247,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
     /**
      * Function to display x, y coordinate on the touchpad (for debugging purposes)
-     *
-     * @param x horizontal coordinate on the touchpad TextView
-     * @param y vertical coordinate on the touchpad TextView
      */
-    private void displayCoordinate(int x, int y) {
-        if (x != mAbsPos.x || y != mAbsPos.y) {
-            if ((0 <= x && 0 <= y) && (x <= mTouchpadWidth && y <= mTouchpadHeight)) {
-                String newCoord = getString(R.string.touchpad_label) + "\n(" + x + ", " + y + ")";
-                mTouchpadTextView.setText(newCoord);
-            }
-        }
+    private void displayCoordinate() {
+        String newCoord = getString(R.string.touchpad_label) + "\n(" + mAbsPos.x + ", " + mAbsPos.y + ")";
+        mTouchpadTextView.setText(newCoord);
     }
 
     /**
@@ -269,14 +262,22 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         mTouchpadTextView.setText(getString(R.string.touchpad_label) + "\n(" + click + ")");
     }
 
+    /**
+     * @return absolute position on the touchpad
+     */
     public Point getAbsolutePosition() {
         return mAbsPos;
     }
 
+    /**
+     * Function to get the relative position of the last user's touch.  Should behave similar to a
+     * laptop trackpad.
+     *
+     * @return position difference from last touch down
+     */
     public Point getRelativePosition() {
         Point relativeDiff = new Point(0, 0);
         // Only calculate relative difference if user has been touching and dragging across touchpad
-        // in order to behave the same as a laptop trackpad
         if (mTouchDown) {
             // If true, then don't calculate the relative difference (let the absolute position buffer for one round)
             // This prevents a jump in position if the user lifts and touches down in a different spot

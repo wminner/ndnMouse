@@ -210,9 +210,11 @@
         android:layout_height="70dp"
         android:layout_marginBottom="8dp"
         android:layout_marginLeft="8dp"
+        android:layout_marginStart="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:srcCompat="@android:drawable/ic_menu_preferences" />
+        app:srcCompat="@android:drawable/ic_menu_preferences"
+        android:contentDescription="@string/option_button_desc" />
 
 
 </android.support.constraint.ConstraintLayout>

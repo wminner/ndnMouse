@@ -29,21 +29,13 @@ public class ServerUDP implements Runnable {
     private MouseActivity mMouseActivity;
 
     private DatagramSocket mSocket;
-    // private InetAddress mReplyAddr;
-    // private int mReplyPort;
     private final int mPort;
     private boolean mServerIsRunning = false;
     private boolean mUseRelativeMovement;
 
-    // private int mPCWidth;
-    // private int mPCHeight;
     private int mPhoneWidth;
     private int mPhoneHeight;
-    // private float mRatioWidth;
-    // private float mRatioHeight;
-
-    //private Point mLastPos = new Point(0,0);
-    HashMap<InetAddress, WorkerThread> mClientThreads;
+    private HashMap<InetAddress, WorkerThread> mClientThreads;
 
     /**
      * Constructor for server
@@ -62,6 +54,9 @@ public class ServerUDP implements Runnable {
         mClientThreads = new HashMap<InetAddress, WorkerThread>();
     }
 
+    /**
+     * Starts server by spinning it off as a background thread
+     */
     public void start() {
         mServerIsRunning = true;
         Thread thread = new Thread(this);
@@ -70,6 +65,9 @@ public class ServerUDP implements Runnable {
         Log.d(TAG, "Started UDP server... " + getIPAddress(true) + ":" + mPort);
     }
 
+    /**
+     * Stops server thread, cleans up all the worker threads, and closes the socket
+     */
     public void stop() {
         try {
             mServerIsRunning = false;
@@ -93,6 +91,7 @@ public class ServerUDP implements Runnable {
     @Override
     public void run() {
         try {
+            // Create a new UDP socket
             mSocket = new DatagramSocket(mPort);
             while (mServerIsRunning) {
                 byte[] buf = new byte[64];
@@ -125,6 +124,12 @@ public class ServerUDP implements Runnable {
         }
     }
 
+    /**
+     * Send a click command to an existing client
+     *
+     * @param click identifier for the type of click
+     * @throws IOException for socket IO error
+     */
     public void ExecuteClick(int click) throws IOException {
         for (WorkerThread client : mClientThreads.values()) {
             if (null != client.mReplyAddr && 0 != client.mReplyPort) {
@@ -189,7 +194,14 @@ public class ServerUDP implements Runnable {
 
         private Point mLastPos = new Point(0, 0);
 
-        public WorkerThread(DatagramSocket socket, DatagramPacket packet) throws SocketException {
+        /**
+         * Constructor
+         *
+         * @param socket shared UDP socket from that parent is managing
+         * @param packet initial packet that client uses to establish a connection with the server
+         * @throws SocketException for socket IO error
+         */
+        WorkerThread(DatagramSocket socket, DatagramPacket packet) throws SocketException {
             mSocket = socket;
             // Get address and port to send reply to
             mReplyAddr = packet.getAddress();
@@ -202,32 +214,27 @@ public class ServerUDP implements Runnable {
         }
 
         /**
-         * Constructs the class, then spins it off into its own thread to do the rest of the
-         * position updates
+         * Spins the class off into its own background thread to do the rest of the position updates
          */
-        public void start() {
+        void start() {
             mWorkerIsRunning = true;
             new Thread(this).start();
             Log.d(TAG, "Started worker thread for client " + mReplyAddr + ":" + mReplyPort);
         }
 
         /**
-         * Stops the thread, but don't close the shared socket
+         * Stops the worker thread
          */
-        public void stop() {
-            try {
-                mWorkerIsRunning = false;
-                Log.d(TAG, "Stopped worker thread for client " + mReplyAddr + ":" + mReplyPort);
-            } catch (Exception e) {
-                Log.e(TAG, "Error closing the worker thread socket.", e);
-            }
+        void stop() {
+            mWorkerIsRunning = false;
+            Log.d(TAG, "Stopped worker thread for client " + mReplyAddr + ":" + mReplyPort);
         }
 
         /**
          * Parses the initial GET packet and retrieves necessary info in order to respond correctly
          *
          * @param initPacket initial packet that the client sends to the server to get position updates
-         * @return true if all parsing completed successfully, otherwise false
+         * @return boolean true if all parsing completed successfully, otherwise false
          */
         private boolean parseInitialRequest(DatagramPacket initPacket) {
             String data = new String(initPacket.getData());
@@ -267,15 +274,18 @@ public class ServerUDP implements Runnable {
                 mSocket.send(replyPacket);
 
                 while (mWorkerIsRunning) {
+                    // Don't send too many updates (may require tuning)
                     Thread.sleep(100);
                     Point position;
                     String moveType;
+                    // Using relative movement...
                     if (mUseRelativeMovement) {
                         position = mMouseActivity.getRelativePosition();
                         moveType = "REL";
                         // Skip update if no relative movement since last update
                         if (position.equals(0, 0))
                             continue;
+                    // Using absolute movement...
                     } else {
                         position = mMouseActivity.getAbsolutePosition();
                         moveType = "ABS";
@@ -285,8 +295,10 @@ public class ServerUDP implements Runnable {
                         } else
                             mLastPos.set(position.x, position.y);
                     }
+                    // Find scaled x and y position according to client's resolution
                     int scaledX = (int) (position.x * mRatioWidth);
                     int scaledY = (int) (position.y * mRatioHeight);
+                    // Build reply packet and send out socket
                     reply = (moveType + " " + scaledX + "," + scaledY + "\n").getBytes();
                     Log.d(TAG, "Sending update: " + moveType + " " + scaledX + "," + scaledY + "\n");
                     replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);

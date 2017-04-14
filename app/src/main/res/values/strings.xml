@@ -18,6 +18,7 @@
     <string name="default_port">10888</string>
     <string name="intent_extra_port">EXTRA_PORT</string>
     <string name="intent_extra_password">EXTRA_PASSWORD</string>
+    <string name="option_button_desc">OPTIONS</string>
 
     <!--Mouse Activity-->
     <string name="left_click_label">LEFT CLICK</string>
