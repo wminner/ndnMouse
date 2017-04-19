@@ -1,7 +1,6 @@
 package edu.ucla.cs.ndnmouse.utilities;
 
 import android.graphics.Point;
-import android.provider.ContactsContract;
 import android.util.Log;
 
 import java.io.IOException;
@@ -22,7 +21,7 @@ import edu.ucla.cs.ndnmouse.MouseActivity;
  * Based off of example code at:
  * https://developer.android.com/samples/PermissionRequest/src/com.example.android.permissionrequest/SimpleWebServer.html
  */
-public class ServerUDP implements Runnable {
+public class ServerUDP implements Runnable, Server {
 
     private static final String TAG = ServerUDP.class.getSimpleName();
 
@@ -32,6 +31,7 @@ public class ServerUDP implements Runnable {
     private final int mPort;
     private boolean mServerIsRunning = false;
     private boolean mUseRelativeMovement;
+    private final int mUpdateIntervalMillis = 50;  // Number of milliseconds to wait before sending next update. May require tuning.
 
     private int mPhoneWidth;
     private int mPhoneHeight;
@@ -49,9 +49,7 @@ public class ServerUDP implements Runnable {
         mPhoneWidth = width;
         mPhoneHeight = height;
         mUseRelativeMovement = useRelativeMovement;
-        Log.d(TAG, "Relative movement set to " + useRelativeMovement);
-
-        mClientThreads = new HashMap<InetAddress, WorkerThread>();
+        mClientThreads = new HashMap<>();
     }
 
     /**
@@ -61,7 +59,7 @@ public class ServerUDP implements Runnable {
         mServerIsRunning = true;
         Thread thread = new Thread(this);
         thread.start();
-        mMouseActivity.setServerThread(thread);
+        // mMouseActivity.setServerThread(thread);
         Log.d(TAG, "Started UDP server... " + getIPAddress(true) + ":" + mPort);
     }
 
@@ -275,7 +273,7 @@ public class ServerUDP implements Runnable {
 
                 while (mWorkerIsRunning) {
                     // Don't send too many updates (may require tuning)
-                    Thread.sleep(100);
+                    Thread.sleep(mUpdateIntervalMillis);
                     Point position;
                     String moveType;
                     // Using relative movement...

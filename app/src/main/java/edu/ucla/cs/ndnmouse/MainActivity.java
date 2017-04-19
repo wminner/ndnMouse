@@ -15,8 +15,6 @@ import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.w3c.dom.Text;
-
 import edu.ucla.cs.ndnmouse.utilities.ServerUDP;
 
 public class MainActivity extends AppCompatActivity {
@@ -25,6 +23,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static String mServerPassword = "1234";
     private EditText mPortEditText;
+    private boolean mUseNDN = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,6 +56,7 @@ public class MainActivity extends AppCompatActivity {
                     Intent intentToStartMouseActivity = new Intent(context, destinationClass);
                     intentToStartMouseActivity.putExtra(getString(R.string.intent_extra_port), port);
                     intentToStartMouseActivity.putExtra(getString(R.string.intent_extra_password), mServerPassword);
+                    intentToStartMouseActivity.putExtra(getString(R.string.intent_extra_protocol), mUseNDN);
                     startActivity(intentToStartMouseActivity);
                 }
             }
@@ -101,12 +101,14 @@ public class MainActivity extends AppCompatActivity {
         switch(view.getId()) {
         case R.id.rb_ndn:
             if (checked) {
-                editor.putBoolean(getString(R.string.radio_button_setting), true);
+                editor.putBoolean(getString(R.string.radio_button_ndn_setting), true);
+                mUseNDN = true;
             }
             break;
         case R.id.rb_udp:
             if (checked) {
-                editor.putBoolean(getString(R.string.radio_button_setting), false);
+                editor.putBoolean(getString(R.string.radio_button_ndn_setting), false);
+                mUseNDN = false;
             }
             break;
         }
@@ -122,8 +124,8 @@ public class MainActivity extends AppCompatActivity {
         final RadioButton rb_ndn = (RadioButton) findViewById(R.id.rb_ndn);
         final RadioButton rb_udp = (RadioButton) findViewById(R.id.rb_udp);
 
-        boolean ndn_radio_button_checked = sharedPreferences.getBoolean(getString(R.string.radio_button_setting), getResources().getBoolean(R.bool.pref_radio_button_ndn_default));
-        rb_ndn.setChecked(ndn_radio_button_checked);
-        rb_udp.setChecked(!ndn_radio_button_checked);
+        mUseNDN = sharedPreferences.getBoolean(getString(R.string.radio_button_ndn_setting), getResources().getBoolean(R.bool.pref_radio_button_ndn_default));
+        rb_ndn.setChecked(mUseNDN);
+        rb_udp.setChecked(!mUseNDN);
     }
 }

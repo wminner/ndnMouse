@@ -18,6 +18,8 @@ import android.widget.TextView;
 import java.io.IOException;
 import java.util.Calendar;
 
+import edu.ucla.cs.ndnmouse.utilities.Server;
+import edu.ucla.cs.ndnmouse.utilities.ServerNDN;
 import edu.ucla.cs.ndnmouse.utilities.ServerUDP;
 
 public class MouseActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
@@ -26,11 +28,12 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
     private static int mPort;
     private static String mPassword;
+    private static boolean mUseNDN;
     private static int mTouchpadWidth;
     private static int mTouchpadHeight;
     private TextView mTouchpadTextView;
-    private ServerUDP mServer;
-    private Thread mServerThread;
+    private Server mServer;
+    // private Thread mServerThread;
 
     // Relative and absolute movement variables
     private Point mAbsPos;
@@ -57,6 +60,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         Intent intent = getIntent();
         mPort = intent.getIntExtra(getString(R.string.intent_extra_port), 10888);
         mPassword = intent.getStringExtra(getString(R.string.intent_extra_password));
+        mUseNDN = intent.getBooleanExtra(getString(R.string.intent_extra_protocol), getResources().getBoolean(R.bool.use_ndn_protocol_default));
 
         mTouchpadTextView = (TextView) findViewById(R.id.tv_touchpad);
         // Find out upper-left coordinate, and width/height of touchpad box
@@ -70,7 +74,14 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                 Log.d(TAG, String.format("Touchpad height is %d", mTouchpadHeight));
 
                 // Create and start mServer
-                mServer = new ServerUDP(MouseActivity.this, mPort, mTouchpadWidth, mTouchpadHeight, mUseRelativeMovement);
+                if (mUseNDN) {
+                    mServer = new ServerNDN(MouseActivity.this, mTouchpadWidth, mTouchpadHeight, mUseRelativeMovement);
+                    Log.d(TAG, "Creating NDN server...");
+                } else {
+                    mServer = new ServerUDP(MouseActivity.this, mPort, mTouchpadWidth, mTouchpadHeight, mUseRelativeMovement);
+                    Log.d(TAG, "Creating UDP server...");
+                }
+
                 mServer.start();
             }
         });
@@ -196,7 +207,8 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
-                        mTouchDownTime = Calendar.getInstance().getTimeInMillis();
+                        // mTouchDownTime = Calendar.getInstance().getTimeInMillis();
+                        mTouchDownTime = System.currentTimeMillis();
                         mTouchDownPos.set(x, y);
                         mTouchDown = true;
 
@@ -208,7 +220,8 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                     case MotionEvent.ACTION_UP:
                         // Check if user tapped (for tap-to-click)
                         if (mTapToLeftClick && ((Math.abs(x - mTouchDownPos.x) <= mTapClickPixelThreshold) && (Math.abs(y - mTouchDownPos.y) <= mTapClickPixelThreshold))) {
-                            long now = Calendar.getInstance().getTimeInMillis();
+                            // long now = Calendar.getInstance().getTimeInMillis();
+                            long now = System.currentTimeMillis();
                             if (now - mTouchDownTime <= mTapClickMillisThreshold) {
                                 try {
                                     mServer.ExecuteClick(R.string.action_left_click_full);
@@ -290,7 +303,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         return relativeDiff;
     }
 
-    public void setServerThread(Thread thread) {
-        mServerThread = thread;
-    }
+//    public void setServerThread(Thread thread) {
+//        mServerThread = thread;
+//    }
 }

@@ -23,8 +23,10 @@ import edu.ucla.cs.ndnmouse.MouseActivity;
  *
  * Based off of example code at:
  * https://developer.android.com/samples/PermissionRequest/src/com.example.android.permissionrequest/SimpleWebServer.html
+ *
+ * TODO: very out of date with UDP server, not supported as of now
  */
-public class ServerTCP implements Runnable {
+public class ServerTCP implements Runnable, Server {
 
     private static final String TAG = ServerTCP.class.getSimpleName();
 
@@ -48,7 +50,7 @@ public class ServerTCP implements Runnable {
     public void start() {
         mIsRunning = true;
         new Thread(this).start();
-        mActivity.setServerThread(Thread.currentThread());
+        // mActivity.setServerThread(Thread.currentThread());
         Log.d(TAG, "Started TCP server... " + getIPAddress(true) + ":" + mPort);
     }
 
@@ -63,6 +65,11 @@ public class ServerTCP implements Runnable {
         } catch (IOException e) {
             Log.e(TAG, "Error closing the server socket.", e);
         }
+    }
+
+    @Override
+    public void ExecuteClick(int click) throws IOException {
+
     }
 
     @Override

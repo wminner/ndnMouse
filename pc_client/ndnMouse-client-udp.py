@@ -6,12 +6,13 @@ import pyautogui
 
 def main(argv):
 	pyautogui.FAILSAFE = False
+	pyautogui.PAUSE = 0
 	screen_size = pyautogui.size()
-	transition_time = 0.1
+	transition_time = 0
 
 	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	bind_address = ('', 10888)
-	default_server_address = ('149.142.48.234', 10888)
+	default_server_address = ('149.142.48.182', 10888)
 
 	# Prompt user for server address and port
 	server_address = getServerAddress(*default_server_address)
@@ -43,12 +44,13 @@ def main(argv):
 			
 			print("Received from server {0}:{1}: {2}".format(server[0], server[1], data))
 
+	except KeyboardInterrupt:
+		print("\nExiting....")
+
 	finally:
 		message = b"STOP\n"
-		print("Sending message: {0}".format(message))
+		# print("Sending message: {0}".format(message))
 		sock.sendto(message, server_address)
-		
-		print("Closing socket.")
 		sock.close()
 
 
@@ -65,6 +67,9 @@ def handleClick(click, updown):
 
 
 # Handle movement commands
+# Format of commands:
+#	"ABS 400,500"	(move to absolute pixel coordinate x=400, y=500)
+#	"REL -75,25"	(move 75 left, 25 up relative to current pixel position)
 def handleMove(data, transition_time):
 	move_type = data[:3]
 	position = data[4:]

@@ -6,11 +6,12 @@ import pyautogui
 
 def main(argv):
 	pyautogui.FAILSAFE = False
+	pyautogui.PAUSE = 0
 	screen_size = pyautogui.size()
-	transition_time = 0.1
+	transition_time = 0
 
 	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	server_address = ('149.142.48.234', 10888)
+	server_address = ('149.142.48.182', 10888)
 
 	print("Use ctrl+c quit at anytime....")
 	print("Connecting to {0}, port {1}.".format(*server_address))
