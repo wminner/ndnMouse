@@ -62,6 +62,7 @@ public class ServerNDN implements Runnable, Server {
 
     @Override
     public void stop() {
+        mServerIsRunning = false;
         if (null != mFace) {
             mFace.shutdown();
             mFace = null;
@@ -133,9 +134,9 @@ public class ServerNDN implements Runnable, Server {
                         Data data = new Data(interest.getName());
                         // TODO replace test data with real position data
                         data.setContent(new Blob("ABS 400,500\n"));
-                        Log.d(TAG, "Sent data: " + data.getContent());
                         try {
                             face.putData(data);
+                            Log.d(TAG, "Sent data: " + data.getContent());
                         } catch (IOException e) {
                             e.printStackTrace();
                             Log.e(TAG, "Failed to put data.");

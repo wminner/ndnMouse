@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, select, os
+import sys
 import socket, ipaddress
 import pyautogui
 
