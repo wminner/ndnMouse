@@ -46,4 +46,13 @@
     <string name="pref_move_rel_value" translatable="false">move_relative</string>
     <string name="pref_move_abs_value" translatable="false">move_absolute</string>
 
+    <!--Communication Protocol-->
+    <string name="protocol_move_absolute">ABS</string>
+    <string name="protocol_move_relative">REL</string>
+    <string name="protocol_opening_request">GET</string>
+
+    <!--ServerNDN-->
+    <string name="ndn_uri_mouse_move">/ndnmouse/move</string>
+    <string name="ndn_uri_identity">/ndnmouse/identify</string>
+
 </resources>

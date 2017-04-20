@@ -1,5 +1,6 @@
 package edu.ucla.cs.ndnmouse.utilities;
 
+import android.graphics.Point;
 import android.util.Log;
 
 import net.named_data.jndn.Data;
@@ -7,10 +8,8 @@ import net.named_data.jndn.Face;
 import net.named_data.jndn.Interest;
 import net.named_data.jndn.InterestFilter;
 import net.named_data.jndn.Name;
-import net.named_data.jndn.OnData;
 import net.named_data.jndn.OnInterestCallback;
 import net.named_data.jndn.OnRegisterFailed;
-import net.named_data.jndn.OnTimeout;
 import net.named_data.jndn.encoding.EncodingException;
 import net.named_data.jndn.security.KeyChain;
 import net.named_data.jndn.security.SecurityException;
@@ -20,12 +19,9 @@ import net.named_data.jndn.security.identity.MemoryPrivateKeyStorage;
 import net.named_data.jndn.util.Blob;
 
 import java.io.IOException;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.nio.channels.ClosedChannelException;
-import java.util.HashMap;
 
 import edu.ucla.cs.ndnmouse.MouseActivity;
+import edu.ucla.cs.ndnmouse.R;
 
 public class ServerNDN implements Runnable, Server {
 
@@ -40,6 +36,11 @@ public class ServerNDN implements Runnable, Server {
 
     private int mPhoneWidth;
     private int mPhoneHeight;
+    private int mPCWidth = 2560;    // TODO temp test value
+    private int mPCHeight = 1335;   // TODO temp test value
+    private float mRatioWidth;
+    private float mRatioHeight;
+    private Point mLastPos = new Point(0, 0);
 
     private static final long UNREGISTERED = -1;
     private long mRegisteredPrefixId = UNREGISTERED;
@@ -50,6 +51,10 @@ public class ServerNDN implements Runnable, Server {
         mPhoneWidth = width;
         mPhoneHeight = height;
         mUseRelativeMovement = useRelativeMovement;
+
+        // Calculate ratios between server screen (phone) and client screen (pc)
+        mRatioWidth = (float) mPCWidth / mPhoneWidth;
+        mRatioHeight = (float) mPCHeight / mPhoneHeight;
     }
 
     @Override
@@ -96,7 +101,7 @@ public class ServerNDN implements Runnable, Server {
     /**
      * Setup Face, its keychain and certificate
      *
-     * @throws SecurityException
+     * @throws SecurityException for KeyChain getDefaultCertificate
      */
     private void setupFace() throws SecurityException {
         mFace = new Face();
@@ -110,8 +115,8 @@ public class ServerNDN implements Runnable, Server {
         try {
             mKeyChain.getDefaultCertificateName();
         } catch (SecurityException e) {
-            mKeyChain.createIdentityAndCertificate(new Name("/ndnmouse/identity"));
-            mKeyChain.getIdentityManager().setDefaultIdentity(new Name("/ndnmouse/identity"));
+            mKeyChain.createIdentityAndCertificate(new Name(mMouseActivity.getString(R.string.ndn_uri_identity)));
+            mKeyChain.getIdentityManager().setDefaultIdentity(new Name(mMouseActivity.getString(R.string.ndn_uri_identity)));
         }
 
         // Set KeyChain and certificate
@@ -125,15 +130,41 @@ public class ServerNDN implements Runnable, Server {
      * @throws SecurityException
      */
     private void registerPrefixes() throws IOException, SecurityException {
-        Name prefix = new Name("/ndnmouse/move");
+        Name prefix = new Name(mMouseActivity.getString(R.string.ndn_uri_mouse_move));
         mRegisteredPrefixId = mFace.registerPrefix(prefix,
                 new OnInterestCallback() {
                     @Override
                     public void onInterest(Name prefix, Interest interest, Face face, long interestFilterId, InterestFilter filter) {
                         Log.d(TAG, "Got interest: " + interest.getName());
                         Data data = new Data(interest.getName());
-                        // TODO replace test data with real position data
-                        data.setContent(new Blob("ABS 400,500\n"));
+                        Point position;
+                        String moveType;
+
+                        // Using relative movement...
+                        if (mUseRelativeMovement) {
+                            position = mMouseActivity.getRelativePosition();
+                            moveType = mMouseActivity.getString(R.string.protocol_move_relative);
+                            // Skip update if no relative movement since last update
+                            if (position.equals(0, 0))
+                                return;
+                        } else {    // Using absolute movement...
+                            position = mMouseActivity.getAbsolutePosition();
+                            moveType = mMouseActivity.getString(R.string.protocol_move_absolute);
+                            // Skip update if no movement happened since the last update
+                            if (position.equals(mLastPos)) {
+                                return;
+                            } else
+                                mLastPos.set(position.x, position.y);
+                        }
+                        // Find scaled x and y position according to client's resolution
+                        int scaledX = (int) (position.x * mRatioWidth);
+                        int scaledY = (int) (position.y * mRatioHeight);
+                        // Build reply string and set data contents
+                        String replyString = moveType + " " + scaledX + "," + scaledY + "\n";
+                        Log.d(TAG, "Sending update: " + replyString);
+                        data.setContent(new Blob(replyString));
+
+                        // Send data out face
                         try {
                             face.putData(data);
                             Log.d(TAG, "Sent data: " + data.getContent());

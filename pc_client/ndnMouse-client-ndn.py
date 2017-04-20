@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 
-import sys
+import sys, time
 import pyndn, ipaddress
 import subprocess
 import pyautogui
 
-import logging
+# import logging
+
+transition_time = 0
 
 def main(argv):
-	LOG_FILENAME = "log.txt"
-	logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
+	# LOG_FILENAME = "log.txt"
+	# logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
 
 	pyautogui.FAILSAFE = False
 	pyautogui.PAUSE = 0
 	screen_size = pyautogui.size()
-	transition_time = 0
+	
 
 	# Create face to work with NFD
 	face = pyndn.face.Face()
@@ -50,23 +52,14 @@ def main(argv):
 			# Send interest
 			face.expressInterest(interest, onData, onTimeout)
 			face.processEvents()
-
-			# # Check and handle click
-			# if clean_data.startswith("CLICK "):
-			# 	_, click, updown = clean_data.split(' ')
-			# 	handleClick(click, updown)
-			# # Otherwise assume move command
-			# else:
-			# 	handleMove(clean_data, transition_time)
-			
-			# print("Received from server {0}:{1}: {2}".format(server[0], server[1], data))
+			time.sleep(0.1)
 
 	except KeyboardInterrupt:
 		print("\nExiting....")
 
 	finally:
-		message = b"STOP\n"
 		face.shutdown()
+		# message = b"STOP\n"
 		# print("Sending message: {0}".format(message))
 		# sock.sendto(message, server_address)
 
@@ -75,6 +68,15 @@ def main(argv):
 def onData(interest, data):
 	byte_string_data = bytes(data.getContent().buf())
 	clean_data = byte_string_data.decode().rstrip()
+	
+	# Check and handle click
+	if clean_data.startswith("CLICK "):
+		_, click, updown = clean_data.split(' ')
+		handleClick(click, updown)
+	# Otherwise assume move command
+	else:
+		handleMove(clean_data)
+
 	print("Got returned data: {0}".format(clean_data))
 	
 
@@ -99,7 +101,7 @@ def handleClick(click, updown):
 # Format of commands:
 #	"ABS 400,500"	(move to absolute pixel coordinate x=400, y=500)
 #	"REL -75,25"	(move 75 left, 25 up relative to current pixel position)
-def handleMove(data, transition_time):
+def handleMove(data):
 	move_type = data[:3]
 	position = data[4:]
 	x, y = [int(i) for i in position.split(',')]

@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import edu.ucla.cs.ndnmouse.MouseActivity;
+import edu.ucla.cs.ndnmouse.R;
 
 /**
  * Class to provide UDP communication with the PC client
@@ -241,7 +242,7 @@ public class ServerUDP implements Runnable, Server {
 
             Log.d(TAG, "Received request data: " + data);
 
-            if (data.startsWith("GET ")) {
+            if (data.startsWith(mMouseActivity.getString(R.string.protocol_opening_request))) {
                 int start = data.indexOf(' ') + 1;
                 int end = data.indexOf('\n', start);
                 String[] monitorRes = data.substring(start, end).split("x");
@@ -267,7 +268,7 @@ public class ServerUDP implements Runnable, Server {
         public void run() {
             try {
                 // Start mouse in middle of monitor
-                byte[] reply = ("ABS " + mPCWidth/2 + "," + mPCHeight/2 + "\n").getBytes();
+                byte[] reply = (mMouseActivity.getString(R.string.protocol_opening_request) + " " + mPCWidth/2 + "," + mPCHeight/2 + "\n").getBytes();
                 DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
                 mSocket.send(replyPacket);
 
@@ -279,14 +280,13 @@ public class ServerUDP implements Runnable, Server {
                     // Using relative movement...
                     if (mUseRelativeMovement) {
                         position = mMouseActivity.getRelativePosition();
-                        moveType = "REL";
+                        moveType = mMouseActivity.getString(R.string.protocol_move_relative);
                         // Skip update if no relative movement since last update
                         if (position.equals(0, 0))
                             continue;
-                    // Using absolute movement...
-                    } else {
+                    } else {    // Using absolute movement...
                         position = mMouseActivity.getAbsolutePosition();
-                        moveType = "ABS";
+                        moveType = mMouseActivity.getString(R.string.protocol_move_absolute);
                         // Skip update if no movement happened since the last update
                         if (position.equals(mLastPos)) {
                             continue;
