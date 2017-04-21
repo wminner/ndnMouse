@@ -112,7 +112,7 @@
         app:layout_constraintRight_toLeftOf="@+id/tv_address"
         app:layout_constraintTop_toBottomOf="@+id/tv_address_label" />
 
-    <EditText
+    <TextView
         android:id="@+id/et_port"
         android:layout_width="240dp"
         android:layout_height="50dp"
@@ -120,7 +120,7 @@
         android:layout_marginLeft="0dp"
         android:layout_marginStart="0dp"
         android:layout_marginTop="0dp"
-        android:inputType="number"
+        android:gravity="start|center_vertical"
         android:text="@string/default_port"
         android:textSize="24sp"
         android:textColor="?android:attr/textColorTertiary"
@@ -128,7 +128,7 @@
         app:layout_constraintTop_toTopOf="@+id/tv_port_label"
         app:layout_constraintVertical_bias="0.0"
         app:layout_constraintLeft_toLeftOf="@+id/tv_address">
-    </EditText>
+    </TextView>
 
     <TextView
         android:id="@+id/tv_password"

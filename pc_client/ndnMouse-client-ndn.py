@@ -7,22 +7,13 @@ import pyautogui
 
 # import logging
 
-transition_time = 0
-
 def main(argv):
 	# LOG_FILENAME = "log.txt"
 	# logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
-
-	pyautogui.FAILSAFE = False
-	pyautogui.PAUSE = 0
-	screen_size = pyautogui.size()
 	
-	# Create face to work with NFD
-	face = pyndn.face.Face()
-	
-	# Prompt user for server address and port
-	default_server_address = "149.142.48.182"
-	server_address = getServerAddress(default_server_address)
+	# Prompt user for server address (port is always 6363 for NFD)
+	default_address = "149.142.48.182"
+	server_address = getServerAddress(default_address)
 
 	# Prompt user for password
 	password = getPassword()
@@ -36,99 +27,124 @@ def main(argv):
 		print("Error: NFD is not running!\nRun \"nfd-start\" and try again.\nExiting...")
 		exit(1)
 
-	print("Use ctrl+c quit at anytime....")
-	print("Routing /ndnmouse interests to udp://{0}.".format(server_address))
+	# Create server and run it
+	server = ndnMouseClientNDN(server_address, password)
+	try:
+		server.run()
+	except KeyboardInterrupt:
+		print("\nExiting...")
+	finally:
+		server.shutdown()
+
 
 ################################################################################
-# BEGIN Interest Callbacks
+# Class ndnMouseClientNDN
 ################################################################################
+
+class ndnMouseClientNDN():
+
+	# pyautogui variables
+	transition_time = 0
+	screen_size = pyautogui.size()
+	pyautogui.FAILSAFE = False
+	pyautogui.PAUSE = 0
+
+	# NDN variables
+	interest_timeout = 100
+	sleep_time = 0.050
+
+
+	def __init__(self, addr, password):
+		# Create face to work with NFD
+		self.face = pyndn.face.Face()
+		self.server_address = addr
+
+
+	def run(self):
+		print("Use ctrl+c quit at anytime....")
+		print("Routing /ndnmouse interests to udp://{0}.".format(self.server_address))
+
+		# Make interest to get movement data
+		interest = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/move"))
+		interest.setInterestLifetimeMilliseconds(self.interest_timeout)
+		interest.setMustBeFresh(True)
+
+		# Send interest
+		self.face.expressInterest(interest, self._onData, self._onTimeout)
+
+		# Loop forever, processing data as it comes back
+		# Additional interests are sent by _onData and _onTimeout callbacks
+		while True:			
+			self.face.processEvents()
+			time.sleep(self.sleep_time)
+
+
+	def shutdown(self):
+		self.face.shutdown()
+
+
+	############################################################################
+	# Interest Callbacks
+	############################################################################
 
 	# Callback for when data is returned for an interest
-	def onData(interest, data):
+	def _onData(self, interest, data):
 		byte_string_data = bytes(data.getContent().buf())
 		clean_data = byte_string_data.decode().rstrip()
 		
 		# Check and handle click
-		if clean_data.startswith("CLICK "):
+		if clean_data.startswith("CLICK"):
 			_, click, updown = clean_data.split(' ')
-			handleClick(click, updown)
+			self.handleClick(click, updown)
 		# Otherwise assume move command
 		else:
-			handleMove(clean_data)
+			self.handleMove(clean_data)
 
 		# Resend interest to get move data
-		face.expressInterest(interest, onData, onTimeout)
+		self.face.expressInterest(interest, self._onData, self._onTimeout)
 		print("Got returned data from {0}: {1}".format(data.getName().toUri(), clean_data))
 		
 
 	# Callback for when interest times out
-	def onTimeout(interest):
+	def _onTimeout(self, interest):
 		# Resend interest to get move data
-		face.expressInterest(interest, onData, onTimeout)
+		self.face.expressInterest(interest, self._onData, self._onTimeout)
 
-################################################################################
-# END Interest Callbacks
-################################################################################
+	
+	############################################################################
+	# Handle Mouse Functions
+	############################################################################
 
-	try:	
-		# Make interest to get move data
-		interest = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/move"))
-		interest.setInterestLifetimeMilliseconds(100)
-		interest.setMustBeFresh(True)
-
-		# Send interest
-		face.expressInterest(interest, onData, onTimeout)
-
-		# Loop forever, processing data as it comes back
-		# Additional interests are sent by onData and onTimeout callbacks
-		while True:			
-			face.processEvents()
-			time.sleep(0.050)
-
-	except KeyboardInterrupt:
-		print("\nExiting....")
-
-	finally:
-		face.shutdown()
-
-################################################################################
-# BEGIN Handle Mouse Functions
-################################################################################
-
-# Handle click commands
-def handleClick(click, updown):
-	if updown == "up":
-		pyautogui.mouseUp(button=click)
-	elif updown == "down":
-		pyautogui.mouseDown(button=click)
-	elif updown == "full":
-		pyautogui.click(button=click)
-	else:
-		print("Invalid click type: {0} {1}".format(click, updown))
+	# Handle click commands
+	def handleClick(self, click, updown):
+		if updown == "up":
+			pyautogui.mouseUp(button=click)
+		elif updown == "down":
+			pyautogui.mouseDown(button=click)
+		elif updown == "full":
+			pyautogui.click(button=click)
+		else:
+			print("Invalid click type: {0} {1}".format(click, updown))
 
 
-# Handle movement commands
-# Format of commands:
-#	"ABS 400,500"	(move to absolute pixel coordinate x=400, y=500)
-#	"REL -75,25"	(move 75 left, 25 up relative to current pixel position)
-def handleMove(data):
-	move_type = data[:3]
-	position = data[4:]
-	x, y = [int(i) for i in position.split(',')]
+	# Handle movement commands
+	# Format of commands:
+	#	"ABS 400,500"	(move to absolute pixel coordinate x=400, y=500)
+	#	"REL -75,25"	(move 75 left, 25 up relative to current pixel position)
+	def handleMove(self, data):
+		move_type = data[:3]
+		position = data[4:]
+		x, y = [int(i) for i in position.split(',')]
 
-	# Move mouse according to move_type (relative or absolute)
-	if (move_type == "REL"):
-		pyautogui.moveRel(x, y, transition_time)
-	elif (move_type == "ABS"):
-		pyautogui.moveTo(x, y, transition_time)
-
-################################################################################
-# END Handle Mouse Functions
-################################################################################
+		# Move mouse according to move_type (relative or absolute)
+		if (move_type == "REL"):
+			pyautogui.moveRel(x, y, self.transition_time)
+		elif (move_type == "ABS"):
+			pyautogui.moveTo(x, y, self.transition_time)
 
 
 ################################################################################
-# BEGIN User Input Functions
+# User Input Functions
 ################################################################################
 
 # Prompt user for server address and port, and validate them
@@ -154,13 +170,9 @@ def getPassword():
 
 	return password
 
-################################################################################
-# END User Input Functions
-################################################################################
-
 
 ################################################################################
-# BEGIN NFD Functions
+# NFD Functions
 ################################################################################
 
 # Checks if NFD is running
@@ -181,10 +193,6 @@ def setupNFD(addr):
 		return True
 	else:
 		return False
-
-################################################################################
-# END NFD Functions
-################################################################################
 
 
 # Strip off script name in arg list

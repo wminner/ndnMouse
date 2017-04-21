@@ -9,7 +9,6 @@ import android.support.v7.preference.PreferenceManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.RadioButton;
 import android.widget.TextView;
@@ -22,7 +21,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
 
     private static String mServerPassword = "1234";
-    private EditText mPortEditText;
+    private TextView mPortTextView;
     private boolean mUseNDN = true;
 
     @Override
@@ -35,7 +34,8 @@ public class MainActivity extends AppCompatActivity {
         final TextView addressTextView = (TextView) findViewById(R.id.tv_address);
         addressTextView.setText(ServerUDP.getIPAddress(true));
 
-        mPortEditText = (EditText) findViewById(R.id.et_port);
+        mPortTextView = (TextView) findViewById(R.id.et_port);
+        mPortTextView.setText(mUseNDN ? "6363" : "10888");
     }
 
     /**
@@ -81,7 +81,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private int getPort() {
         try {
-            int port = Integer.parseInt(mPortEditText.getText().toString());
+            int port = Integer.parseInt(mPortTextView.getText().toString());
             Log.d(TAG, "Port is " + port);
             if (1 <= port && port <= 65535)
                 return port;
@@ -102,12 +102,14 @@ public class MainActivity extends AppCompatActivity {
         case R.id.rb_ndn:
             if (checked) {
                 editor.putBoolean(getString(R.string.radio_button_ndn_setting), true);
+                mPortTextView.setText("6363");
                 mUseNDN = true;
             }
             break;
         case R.id.rb_udp:
             if (checked) {
                 editor.putBoolean(getString(R.string.radio_button_ndn_setting), false);
+                mPortTextView.setText("10888");
                 mUseNDN = false;
             }
             break;

@@ -17,7 +17,7 @@ def main(argv):
 	password = getPassword()
 
 	# Create server and run it
-	server = ndnMouseServerUDP(server_address, default_port, password)
+	server = ndnMouseClientUDP(server_address, default_port, password)
 	
 	try:
 		server.run()
@@ -27,22 +27,21 @@ def main(argv):
 		server.shutdown()
 
 ################################################################################
-# Class ndnMouseServerUDP
+# Class ndnMouseClientUDP
 ################################################################################
 
-class ndnMouseServerUDP():
+class ndnMouseClientUDP():
 	
 	# pyautogui variables
 	transition_time = 0
 	screen_size = pyautogui.size()
 	pyautogui.FAILSAFE = False
 	pyautogui.PAUSE = 0
-
-	# Socket variables
-	bind_address = ('', 10888)
 	
+
 	def __init__(self, addr, port, password):
 		self.server_address = (addr, port)
+		self.bind_address = ('', port)
 		self.password = password
 
 
