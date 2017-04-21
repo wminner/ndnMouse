@@ -19,6 +19,7 @@ import net.named_data.jndn.security.identity.MemoryPrivateKeyStorage;
 import net.named_data.jndn.util.Blob;
 
 import java.io.IOException;
+import java.util.Random;
 
 import edu.ucla.cs.ndnmouse.MouseActivity;
 import edu.ucla.cs.ndnmouse.R;
@@ -32,7 +33,8 @@ public class ServerNDN implements Runnable, Server {
     // private final int mPort = 6363;     // Default NFD port
     private boolean mServerIsRunning = false;
     private boolean mUseRelativeMovement;
-    private final int mUpdateIntervalMillis = 50;  // Number of milliseconds to wait before sending next update. May require tuning.
+    private final static int mUpdateIntervalMillis = 50;   // Number of milliseconds to wait before sending next update. May require tuning.
+    private final static double mFreshnessPeriod = 0;     // Number of milliseconds data is considered fresh. May require tuning.
 
     private int mPhoneWidth;
     private int mPhoneHeight;
@@ -41,6 +43,7 @@ public class ServerNDN implements Runnable, Server {
     private float mRatioWidth;
     private float mRatioHeight;
     private Point mLastPos = new Point(0, 0);
+    // private static long mSeqNum;
 
     private static final long UNREGISTERED = -1;
     private long mRegisteredPrefixId = UNREGISTERED;
@@ -55,6 +58,8 @@ public class ServerNDN implements Runnable, Server {
         // Calculate ratios between server screen (phone) and client screen (pc)
         mRatioWidth = (float) mPCWidth / mPhoneWidth;
         mRatioHeight = (float) mPCHeight / mPhoneHeight;
+
+        // mSeqNum = Math.abs(new Random().nextLong());
     }
 
     @Override
@@ -135,10 +140,12 @@ public class ServerNDN implements Runnable, Server {
                 new OnInterestCallback() {
                     @Override
                     public void onInterest(Name prefix, Interest interest, Face face, long interestFilterId, InterestFilter filter) {
-                        Log.d(TAG, "Got interest: " + interest.getName());
-                        Data data = new Data(interest.getName());
                         Point position;
                         String moveType;
+
+                        Log.d(TAG, "Got interest: " + interest.getName());
+                        Data replyData = new Data(interest.getName());
+                        replyData.getMetaInfo().setFreshnessPeriod(mFreshnessPeriod);
 
                         // Using relative movement...
                         if (mUseRelativeMovement) {
@@ -162,12 +169,11 @@ public class ServerNDN implements Runnable, Server {
                         // Build reply string and set data contents
                         String replyString = moveType + " " + scaledX + "," + scaledY + "\n";
                         Log.d(TAG, "Sending update: " + replyString);
-                        data.setContent(new Blob(replyString));
+                        replyData.setContent(new Blob(replyString));
 
                         // Send data out face
                         try {
-                            face.putData(data);
-                            Log.d(TAG, "Sent data: " + data.getContent());
+                            face.putData(replyData);
                         } catch (IOException e) {
                             e.printStackTrace();
                             Log.e(TAG, "Failed to put data.");

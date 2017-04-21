@@ -53,6 +53,9 @@ def main(argv):
 		sock.sendto(message, server_address)
 		sock.close()
 
+################################################################################
+# BEGIN Handle Mouse Functions
+################################################################################
 
 # Handle click commands
 def handleClick(click, updown):
@@ -81,6 +84,14 @@ def handleMove(data, transition_time):
 	elif (move_type == "ABS"):
 		pyautogui.moveTo(x, y, transition_time)
 
+################################################################################
+# END Handle Mouse Functions
+################################################################################
+
+
+################################################################################
+# BEGIN User Input Functions
+################################################################################
 
 # Prompt user for server address and port, and validate them
 def getServerAddress(default_addr, default_port):
@@ -113,6 +124,10 @@ def getPassword():
 		sys.exit(1)
 
 	return password
+
+################################################################################
+# END User Input Functions
+################################################################################
 
 
 # Strip off script name in arg list

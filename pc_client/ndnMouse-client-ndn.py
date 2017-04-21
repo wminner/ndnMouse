@@ -17,7 +17,6 @@ def main(argv):
 	pyautogui.PAUSE = 0
 	screen_size = pyautogui.size()
 	
-
 	# Create face to work with NFD
 	face = pyndn.face.Face()
 	
@@ -40,50 +39,61 @@ def main(argv):
 	print("Use ctrl+c quit at anytime....")
 	print("Routing /ndnmouse interests to udp://{0}.".format(server_address))
 
-	try:
-		message = "GET {0}x{1}\n".format(*screen_size).encode()
-		# print("Sending message: {0}".format(message))
+################################################################################
+# BEGIN Interest Callbacks
+################################################################################
+
+	# Callback for when data is returned for an interest
+	def onData(interest, data):
+		byte_string_data = bytes(data.getContent().buf())
+		clean_data = byte_string_data.decode().rstrip()
 		
-		while True:
-			# Make interest
-			interest = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/move"))
-			interest.setInterestLifetimeMilliseconds(1000)
-			# print("interest timeout is {0}".format(interest.getInterestLifetimeMilliseconds()))
-			# Send interest
-			face.expressInterest(interest, onData, onTimeout)
+		# Check and handle click
+		if clean_data.startswith("CLICK "):
+			_, click, updown = clean_data.split(' ')
+			handleClick(click, updown)
+		# Otherwise assume move command
+		else:
+			handleMove(clean_data)
+
+		# Resend interest to get move data
+		face.expressInterest(interest, onData, onTimeout)
+		print("Got returned data from {0}: {1}".format(data.getName().toUri(), clean_data))
+		
+
+	# Callback for when interest times out
+	def onTimeout(interest):
+		# Resend interest to get move data
+		face.expressInterest(interest, onData, onTimeout)
+
+################################################################################
+# END Interest Callbacks
+################################################################################
+
+	try:	
+		# Make interest to get move data
+		interest = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/move"))
+		interest.setInterestLifetimeMilliseconds(100)
+		interest.setMustBeFresh(True)
+
+		# Send interest
+		face.expressInterest(interest, onData, onTimeout)
+
+		# Loop forever, processing data as it comes back
+		# Additional interests are sent by onData and onTimeout callbacks
+		while True:			
 			face.processEvents()
-			time.sleep(0.1)
+			time.sleep(0.050)
 
 	except KeyboardInterrupt:
 		print("\nExiting....")
 
 	finally:
 		face.shutdown()
-		# message = b"STOP\n"
-		# print("Sending message: {0}".format(message))
-		# sock.sendto(message, server_address)
 
-
-# Callback for when data is returned for an interest
-def onData(interest, data):
-	byte_string_data = bytes(data.getContent().buf())
-	clean_data = byte_string_data.decode().rstrip()
-	
-	# Check and handle click
-	if clean_data.startswith("CLICK "):
-		_, click, updown = clean_data.split(' ')
-		handleClick(click, updown)
-	# Otherwise assume move command
-	else:
-		handleMove(clean_data)
-
-	print("Got returned data: {0}".format(clean_data))
-	
-
-# Callback for when interest times out
-def onTimeout(interest):
-	print("Interest \"{0}\" timed out.".format(interest.getName().toUri()))
-
+################################################################################
+# BEGIN Handle Mouse Functions
+################################################################################
 
 # Handle click commands
 def handleClick(click, updown):
@@ -112,6 +122,14 @@ def handleMove(data):
 	elif (move_type == "ABS"):
 		pyautogui.moveTo(x, y, transition_time)
 
+################################################################################
+# END Handle Mouse Functions
+################################################################################
+
+
+################################################################################
+# BEGIN User Input Functions
+################################################################################
 
 # Prompt user for server address and port, and validate them
 def getServerAddress(default_addr):
@@ -136,6 +154,14 @@ def getPassword():
 
 	return password
 
+################################################################################
+# END User Input Functions
+################################################################################
+
+
+################################################################################
+# BEGIN NFD Functions
+################################################################################
 
 # Checks if NFD is running
 def NFDIsRunning():
@@ -155,6 +181,10 @@ def setupNFD(addr):
 		return True
 	else:
 		return False
+
+################################################################################
+# END NFD Functions
+################################################################################
 
 
 # Strip off script name in arg list

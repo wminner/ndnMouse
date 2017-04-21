@@ -254,7 +254,9 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
      */
     private void updateAbsolutePosition(int x, int y) {
         if (Math.abs(x - mAbsPos.x) >= mMinMovementPixelThreshold || Math.abs(y - mAbsPos.y) >= mMinMovementPixelThreshold) {
-            mAbsPos.set(x, y);
+            if ((0 <= x && 0 <= y) &&(x <= mTouchpadWidth && y <= mTouchpadHeight)) {
+                mAbsPos.set(x, y);
+            }
         }
     }
 

@@ -32,7 +32,7 @@ public class ServerUDP implements Runnable, Server {
     private final int mPort;
     private boolean mServerIsRunning = false;
     private boolean mUseRelativeMovement;
-    private final int mUpdateIntervalMillis = 50;  // Number of milliseconds to wait before sending next update. May require tuning.
+    private final static int mUpdateIntervalMillis = 50;  // Number of milliseconds to wait before sending next update. May require tuning.
 
     private int mPhoneWidth;
     private int mPhoneHeight;
