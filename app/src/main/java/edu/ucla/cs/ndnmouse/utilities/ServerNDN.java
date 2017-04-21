@@ -43,7 +43,7 @@ public class ServerNDN implements Runnable, Server {
     private float mRatioWidth;
     private float mRatioHeight;
     private Point mLastPos = new Point(0, 0);
-    // private static long mSeqNum;
+    // private static long mSeqNum;     // Using seq numbers seem to increase the latency a lot, removing for now...
 
     private static final long UNREGISTERED = -1;
     private long mRegisteredPrefixId = UNREGISTERED;

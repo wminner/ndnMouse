@@ -5,105 +5,155 @@ import socket, ipaddress
 import pyautogui
 
 def main(argv):
-	pyautogui.FAILSAFE = False
-	pyautogui.PAUSE = 0
-	screen_size = pyautogui.size()
-	transition_time = 0
+	
+	default_address = '149.142.48.182'
+	default_port = 10888
 
-	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-	bind_address = ('', 10888)
-	default_server_address = ('149.142.48.182', 10888)
-
-	# Prompt user for server address and port
-	server_address = getServerAddress(*default_server_address)
+	# Prompt user for server address
+	server_address = getServerAddress(default_address)
+	#server_port = getSeverPort(default_port)	# Just leaving at default for now...
 
 	# Prompt user for password
 	password = getPassword()
 
-	print("Use ctrl+c quit at anytime....")
-	print("Listening to {0}, port {1}.".format(*server_address))
-	sock.bind(bind_address)
-
+	# Create server and run it
+	server = ndnMouseServerUDP(server_address, default_port, password)
+	
 	try:
-		message = "GET {0}x{1}\n".format(*screen_size).encode()
-		print("Sending message: {0}".format(message))
-		sock.sendto(message, server_address)
+		server.run()
+	except KeyboardInterrupt:
+		print("\nExiting...")
+	finally:
+		server.shutdown()
 
-		# Look for a response
+################################################################################
+# Class ndnMouseServerUDP
+################################################################################
+
+class ndnMouseServerUDP():
+	
+	# pyautogui variables
+	transition_time = 0
+	screen_size = pyautogui.size()
+	pyautogui.FAILSAFE = False
+	pyautogui.PAUSE = 0
+
+	# Socket variables
+	bind_address = ('', 10888)
+	
+	def __init__(self, addr, port, password):
+		self.server_address = (addr, port)
+		self.password = password
+
+
+	# Send opening messge to refresh the connection (keep alive)
+	def _refreshConnection(self):
+		got_timeout = True
+		while got_timeout:
+			message = "GET {0}x{1}\n".format(*self.screen_size).encode()
+			print("Sending message: {0}".format(message))
+			try:
+				self.sock.sendto(message, self.server_address)
+				data, server = self.sock.recvfrom(64)
+				if data.decode().startswith("OK"):
+					got_timeout = False
+					print("Connected to server {0}:{1}.".format(*server))
+
+			except socket.timeout:
+				got_timeout = True
+
+
+	# Run the server
+	def run(self):
+		self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+		self.sock.bind(self.bind_address)
+		self.sock.settimeout(1.0)
+
+		print("Use ctrl+c quit at anytime....")
+		print("Listening to {0}, port {1}.".format(*self.server_address))
+				
+		# Receive and process mouse updates forever
 		while True:
-			data, server = sock.recvfrom(64)
+			try:
+				data, server = self.sock.recvfrom(64)
+			except socket.timeout:
+				self._refreshConnection()
+				continue			
+
 			clean_data = data.decode().rstrip()
 			
-			# Check and handle click
-			if clean_data.startswith("CLICK "):
+			# Handle different commands
+			if clean_data.startswith("REL") or clean_data.startswith("ABS"):
+				self._handleMove(clean_data, self.transition_time)
+			elif clean_data.startswith("CLICK"):
 				_, click, updown = clean_data.split(' ')
-				handleClick(click, updown)
-			# Otherwise assume move command
-			else:
-				handleMove(clean_data, transition_time)
-			
+				self._handleClick(click, updown)
+			else:	# Got acknowledgement message from server, do nothing
+				continue
+
 			print("Received from server {0}:{1}: {2}".format(server[0], server[1], data))
+		
 
-	except KeyboardInterrupt:
-		print("\nExiting....")
-
-	finally:
+	# Shutdown the server
+	def shutdown(self):
 		message = b"STOP\n"
 		# print("Sending message: {0}".format(message))
-		sock.sendto(message, server_address)
-		sock.close()
+		self.sock.sendto(message, self.server_address)
+		self.sock.close()
 
-################################################################################
-# BEGIN Handle Mouse Functions
-################################################################################
+	############################################################################
+	# Handle Mouse Functions
+	############################################################################
 
-# Handle click commands
-def handleClick(click, updown):
-	if updown == "up":
-		pyautogui.mouseUp(button=click)
-	elif updown == "down":
-		pyautogui.mouseDown(button=click)
-	elif updown == "full":
-		pyautogui.click(button=click)
-	else:
-		print("Invalid click type: {0} {1}".format(click, updown))
+	# Handle click commands
+	def _handleClick(self, click, updown):
+		if updown == "up":
+			pyautogui.mouseUp(button=click)
+		elif updown == "down":
+			pyautogui.mouseDown(button=click)
+		elif updown == "full":
+			pyautogui.click(button=click)
+		else:
+			print("Invalid click type: {0} {1}".format(click, updown))
 
 
-# Handle movement commands
-# Format of commands:
-#	"ABS 400,500"	(move to absolute pixel coordinate x=400, y=500)
-#	"REL -75,25"	(move 75 left, 25 up relative to current pixel position)
-def handleMove(data, transition_time):
-	move_type = data[:3]
-	position = data[4:]
-	x, y = [int(i) for i in position.split(',')]
+	# Handle movement commands
+	# Format of commands:
+	#	"ABS 400,500"	(move to absolute pixel coordinate x=400, y=500)
+	#	"REL -75,25"	(move 75 left, 25 up relative to current pixel position)
+	def _handleMove(self, data, transition_time):
+		move_type = data[:3]
+		position = data[4:]
+		x, y = [int(i) for i in position.split(',')]
 
-	# Move mouse according to move_type (relative or absolute)
-	if (move_type == "REL"):
-		pyautogui.moveRel(x, y, transition_time)
-	elif (move_type == "ABS"):
-		pyautogui.moveTo(x, y, transition_time)
-
-################################################################################
-# END Handle Mouse Functions
-################################################################################
+		# Move mouse according to move_type (relative or absolute)
+		if (move_type == "REL"):
+			pyautogui.moveRel(x, y, transition_time)
+		elif (move_type == "ABS"):
+			pyautogui.moveTo(x, y, transition_time)
 
 
 ################################################################################
-# BEGIN User Input Functions
+# User Input Functions
 ################################################################################
 
-# Prompt user for server address and port, and validate them
-def getServerAddress(default_addr, default_port):
+# Prompt user for server address and port, and validate
+def getServerAddress(default_addr):
 	addr = pyautogui.prompt(text="Enter server IP address", title="Server Address", default=default_addr)
-	port_string = pyautogui.prompt(text="Enter server port number", title="Server Port", default=default_port)
-
+	
 	# Validate address
 	try:
 		ipaddress.ip_address(addr)
 	except ValueError:
 		pyautogui.alert(text="Address \"{0}\" is not valid!".format(addr), title="Invalid Address", button='Exit')
 		sys.exit(1)
+
+	return addr
+
+
+# Prompt user for server port, and validate
+def getSeverPort(default_port):
+	port_string = pyautogui.prompt(text="Enter server port number", title="Server Port", default=default_port)
 
 	# Validate port
 	try:
@@ -114,7 +164,8 @@ def getServerAddress(default_addr, default_port):
 		pyautogui.alert(text="Port \"{0}\" is not valid! Please enter a port between 1-65535.".format(port_string), title="Invalid Port", button='Exit')
 		sys.exit(1)
 
-	return (addr, port)
+	return port
+
 
 # Prompt user for password, and validate it
 def getPassword():
@@ -124,10 +175,6 @@ def getPassword():
 		sys.exit(1)
 
 	return password
-
-################################################################################
-# END User Input Functions
-################################################################################
 
 
 # Strip off script name in arg list

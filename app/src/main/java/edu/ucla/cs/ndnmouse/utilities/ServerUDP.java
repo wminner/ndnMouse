@@ -104,13 +104,17 @@ public class ServerUDP implements Runnable, Server {
                 data = data.substring(0, data.indexOf('\0'));
 
                 // If new client...
-                if (data.startsWith("GET ")) {
-                    // Start a new worker thread to handle updates, and store its reference
-                    WorkerThread worker = new WorkerThread(mSocket, packet);
-                    mClientThreads.put(packet.getAddress(), worker);
-
+                if (data.startsWith(mMouseActivity.getString(R.string.protocol_opening_request))) {
+                    if (!mClientThreads.containsKey(packet.getAddress())) {
+                        // Start a new worker thread to handle updates, and store its reference
+                        WorkerThread worker = new WorkerThread(mSocket, packet);
+                        mClientThreads.put(packet.getAddress(), worker);
+                        Log.d(TAG, "Number of clients: " + mClientThreads.size());
+                    } else {
+                        mClientThreads.get(packet.getAddress()).sendAck();
+                    }
                 // Otherwise if existing client no longer wants updates...
-                } else if (data.startsWith("STOP")) {
+                } else if (data.startsWith(mMouseActivity.getString(R.string.protocol_closing_request))) {
                     // Look up its thread and stop it
                     if (mClientThreads.containsKey(packet.getAddress())) {
                         mClientThreads.get(packet.getAddress()).stop();
@@ -264,13 +268,16 @@ public class ServerUDP implements Runnable, Server {
             return true;
         }
 
+        public void sendAck() throws IOException {
+            byte[] reply = (mMouseActivity.getString(R.string.protocol_opening_reply) + "\n").getBytes();
+            DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
+            mSocket.send(replyPacket);
+        }
+
         @Override
         public void run() {
             try {
-                // Start mouse in middle of monitor
-                byte[] reply = (mMouseActivity.getString(R.string.protocol_opening_request) + " " + mPCWidth/2 + "," + mPCHeight/2 + "\n").getBytes();
-                DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
-                mSocket.send(replyPacket);
+                sendAck();
 
                 while (mWorkerIsRunning) {
                     // Don't send too many updates (may require tuning)
@@ -297,9 +304,9 @@ public class ServerUDP implements Runnable, Server {
                     int scaledX = (int) (position.x * mRatioWidth);
                     int scaledY = (int) (position.y * mRatioHeight);
                     // Build reply packet and send out socket
-                    reply = (moveType + " " + scaledX + "," + scaledY + "\n").getBytes();
+                    byte[] reply = (moveType + " " + scaledX + "," + scaledY + "\n").getBytes();
                     Log.d(TAG, "Sending update: " + moveType + " " + scaledX + "," + scaledY + "\n");
-                    replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
+                    DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
                     mSocket.send(replyPacket);
                 }
             } catch (InterruptedException | IOException e) {

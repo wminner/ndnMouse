@@ -50,6 +50,8 @@
     <string name="protocol_move_absolute">ABS</string>
     <string name="protocol_move_relative">REL</string>
     <string name="protocol_opening_request">GET</string>
+    <string name="protocol_closing_request">STOP</string>
+    <string name="protocol_opening_reply">OK</string>
 
     <!--ServerNDN-->
     <string name="ndn_uri_mouse_move">/ndnmouse/move</string>
