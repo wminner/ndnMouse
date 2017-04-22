@@ -206,15 +206,18 @@
 
     <ImageButton
         android:id="@+id/b_options"
-        android:layout_width="70dp"
-        android:layout_height="70dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginBottom="8dp"
         android:layout_marginLeft="8dp"
         android:layout_marginStart="8dp"
+        android:background="@null"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:srcCompat="@android:drawable/ic_menu_preferences"
+        app:srcCompat="@mipmap/settings_icon"
         android:contentDescription="@string/option_button_desc" />
+
+    <!--app:srcCompat="@android:drawable/ic_menu_preferences"-->
 
 
 </android.support.constraint.ConstraintLayout>

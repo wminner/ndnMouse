@@ -3,6 +3,7 @@ package edu.ucla.cs.ndnmouse;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.preference.PreferenceManager;
@@ -22,7 +23,9 @@ public class MainActivity extends AppCompatActivity {
 
     private static String mServerPassword = "1234";
     private TextView mPortTextView;
+    private TextView mAddressTextView;
     private boolean mUseNDN = true;
+    private boolean mMonitorIPAddress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,11 +34,24 @@ public class MainActivity extends AppCompatActivity {
         setupButtonCallbacks();
         setupSharedPreferences();
 
-        final TextView addressTextView = (TextView) findViewById(R.id.tv_address);
-        addressTextView.setText(ServerUDP.getIPAddress(true));
+        mAddressTextView = (TextView) findViewById(R.id.tv_address);
+        mAddressTextView.setText(ServerUDP.getIPAddress(true));
 
         mPortTextView = (TextView) findViewById(R.id.et_port);
-        mPortTextView.setText(mUseNDN ? "6363" : "10888");
+        mPortTextView.setText(mUseNDN ? getString(R.string.ndn_port) : getString(R.string.udp_port));
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        mMonitorIPAddress = false;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mMonitorIPAddress = true;
+        periodicallyUpdateIPAddress();
     }
 
     /**
@@ -57,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
                     intentToStartMouseActivity.putExtra(getString(R.string.intent_extra_port), port);
                     intentToStartMouseActivity.putExtra(getString(R.string.intent_extra_password), mServerPassword);
                     intentToStartMouseActivity.putExtra(getString(R.string.intent_extra_protocol), mUseNDN);
+                    mMonitorIPAddress = false;
                     startActivity(intentToStartMouseActivity);
                 }
             }
@@ -102,14 +119,14 @@ public class MainActivity extends AppCompatActivity {
         case R.id.rb_ndn:
             if (checked) {
                 editor.putBoolean(getString(R.string.radio_button_ndn_setting), true);
-                mPortTextView.setText("6363");
+                mPortTextView.setText(getString(R.string.ndn_port));
                 mUseNDN = true;
             }
             break;
         case R.id.rb_udp:
             if (checked) {
                 editor.putBoolean(getString(R.string.radio_button_ndn_setting), false);
-                mPortTextView.setText("10888");
+                mPortTextView.setText(getString(R.string.udp_port));
                 mUseNDN = false;
             }
             break;
@@ -129,5 +146,22 @@ public class MainActivity extends AppCompatActivity {
         mUseNDN = sharedPreferences.getBoolean(getString(R.string.radio_button_ndn_setting), getResources().getBoolean(R.bool.pref_radio_button_ndn_default));
         rb_ndn.setChecked(mUseNDN);
         rb_udp.setChecked(!mUseNDN);
+    }
+
+    /**
+     * Periodically update the IP address TextView in case network changes
+     */
+    private void periodicallyUpdateIPAddress() {
+        if (mMonitorIPAddress) {
+            mAddressTextView.setText(ServerUDP.getIPAddress(true));
+            Log.d(TAG, "Updating IP address to " + ServerUDP.getIPAddress(true));
+            final Handler handler = new Handler();
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    periodicallyUpdateIPAddress();
+                }
+            }, 5000);
+        }
     }
 }

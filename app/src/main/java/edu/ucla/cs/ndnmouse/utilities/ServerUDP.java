@@ -81,7 +81,7 @@ public class ServerUDP implements Runnable, Server {
                 mSocket.close();
                 mSocket = null;
             }
-            Log.d(TAG, "Stopped UDP listener...");
+            Log.d(TAG, "Stopped UDP server...");
         } catch (Exception e) {
             Log.e(TAG, "Error closing the server socket.", e);
         }
@@ -123,7 +123,7 @@ public class ServerUDP implements Runnable, Server {
                 }
             }
         } catch (IOException e) {
-            Log.e(TAG, "Web server error.", e);
+            Log.e(TAG, "Web server was interrupted and is now closed.", e);
         }
     }
 
