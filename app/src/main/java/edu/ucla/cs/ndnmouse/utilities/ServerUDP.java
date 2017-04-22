@@ -269,7 +269,7 @@ public class ServerUDP implements Runnable, Server {
         }
 
         public void sendAck() throws IOException {
-            byte[] reply = (mMouseActivity.getString(R.string.protocol_opening_reply) + "\n").getBytes();
+            byte[] reply = (mMouseActivity.getString(R.string.protocol_opening_reply)).getBytes();
             DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
             mSocket.send(replyPacket);
         }
@@ -278,7 +278,6 @@ public class ServerUDP implements Runnable, Server {
         public void run() {
             try {
                 sendAck();
-
                 while (mWorkerIsRunning) {
                     // Don't send too many updates (may require tuning)
                     Thread.sleep(mUpdateIntervalMillis);
@@ -304,8 +303,8 @@ public class ServerUDP implements Runnable, Server {
                     int scaledX = (int) (position.x * mRatioWidth);
                     int scaledY = (int) (position.y * mRatioHeight);
                     // Build reply packet and send out socket
-                    byte[] reply = (moveType + " " + scaledX + "," + scaledY + "\n").getBytes();
-                    Log.d(TAG, "Sending update: " + moveType + " " + scaledX + "," + scaledY + "\n");
+                    byte[] reply = (moveType + " " + scaledX + "," + scaledY).getBytes();
+                    Log.d(TAG, "Sending update: " + moveType + " " + scaledX + "," + scaledY);
                     DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
                     mSocket.send(replyPacket);
                 }

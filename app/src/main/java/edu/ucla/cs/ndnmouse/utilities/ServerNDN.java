@@ -19,7 +19,6 @@ import net.named_data.jndn.security.identity.MemoryPrivateKeyStorage;
 import net.named_data.jndn.util.Blob;
 
 import java.io.IOException;
-import java.util.Random;
 
 import edu.ucla.cs.ndnmouse.MouseActivity;
 import edu.ucla.cs.ndnmouse.R;
@@ -46,8 +45,10 @@ public class ServerNDN implements Runnable, Server {
     // private static long mSeqNum;     // Using seq numbers seem to increase the latency a lot, removing for now...
 
     private static final long UNREGISTERED = -1;
+    private static final int NOCLICK = -1;
     private long mRegisteredPrefixId = UNREGISTERED;
     private KeyChain mKeyChain;
+    private static int mExecuteClick = NOCLICK;
 
     public ServerNDN(MouseActivity activity, int width, int height, boolean useRelativeMovement) {
         mMouseActivity = activity;
@@ -120,8 +121,8 @@ public class ServerNDN implements Runnable, Server {
         try {
             mKeyChain.getDefaultCertificateName();
         } catch (SecurityException e) {
-            mKeyChain.createIdentityAndCertificate(new Name(mMouseActivity.getString(R.string.ndn_uri_identity)));
-            mKeyChain.getIdentityManager().setDefaultIdentity(new Name(mMouseActivity.getString(R.string.ndn_uri_identity)));
+            mKeyChain.createIdentityAndCertificate(new Name(mMouseActivity.getString(R.string.ndn_prefix_identity)));
+            mKeyChain.getIdentityManager().setDefaultIdentity(new Name(mMouseActivity.getString(R.string.ndn_prefix_identity)));
         }
 
         // Set KeyChain and certificate
@@ -135,8 +136,9 @@ public class ServerNDN implements Runnable, Server {
      * @throws SecurityException
      */
     private void registerPrefixes() throws IOException, SecurityException {
-        Name prefix = new Name(mMouseActivity.getString(R.string.ndn_uri_mouse_move));
-        mRegisteredPrefixId = mFace.registerPrefix(prefix,
+        // Prefix for movement updates (synchronous)
+        Name prefix_move = new Name(mMouseActivity.getString(R.string.ndn_prefix_mouse_move));
+        mRegisteredPrefixId = mFace.registerPrefix(prefix_move,
                 new OnInterestCallback() {
                     @Override
                     public void onInterest(Name prefix, Interest interest, Face face, long interestFilterId, InterestFilter filter) {
@@ -167,7 +169,7 @@ public class ServerNDN implements Runnable, Server {
                         int scaledX = (int) (position.x * mRatioWidth);
                         int scaledY = (int) (position.y * mRatioHeight);
                         // Build reply string and set data contents
-                        String replyString = moveType + " " + scaledX + "," + scaledY + "\n";
+                        String replyString = moveType + " " + scaledX + "," + scaledY;
                         Log.d(TAG, "Sending update: " + replyString);
                         replyData.setContent(new Blob(replyString));
 
@@ -187,10 +189,57 @@ public class ServerNDN implements Runnable, Server {
                         Log.e(TAG, "Failed to register prefix: " + name.toUri());
                     }
                 });
+
+        // Prefix for click commands (asynchronous events)
+        Name prefix_click = new Name(mMouseActivity.getString(R.string.ndn_prefix_mouse_click));
+        mRegisteredPrefixId = mFace.registerPrefix(prefix_click,
+                new OnInterestCallback() {
+                    @Override
+                    public void onInterest(Name prefix, Interest interest, Face face, long interestFilterId, InterestFilter filter) {
+
+                        Log.d(TAG, "Got interest: " + interest.getName());
+                        Data replyData = new Data(interest.getName());
+                        replyData.getMetaInfo().setFreshnessPeriod(mFreshnessPeriod);
+
+                        // If no click has occurred, return let the interest timeout
+                        if (NOCLICK == mExecuteClick) {
+                            return;
+                        }
+
+                        // Build reply string and set data contents
+                        String replyString = mMouseActivity.getString(mExecuteClick);
+                        Log.d(TAG, "Sending update: " + replyString);
+                        replyData.setContent(new Blob(replyString));
+
+                        // Send data out face
+                        try {
+                            face.putData(replyData);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            Log.e(TAG, "Failed to put data.");
+                        }
+
+                        // Reset click so we only send it out once
+                        mExecuteClick = NOCLICK;
+                    }
+                },
+                new OnRegisterFailed() {
+                    @Override
+                    public void onRegisterFailed(Name name) {
+                        mRegisteredPrefixId = UNREGISTERED;
+                        Log.e(TAG, "Failed to register prefix: " + name.toUri());
+                    }
+                });
     }
 
+    /**
+     * Send a click command to an existing client
+     *
+     * @param click identifier for the type of click
+     * @throws IOException for socket IO error
+     */
     @Override
     public void ExecuteClick(int click) throws IOException {
-
+        mExecuteClick = click;
     }
 }

@@ -8,7 +8,7 @@ import pyautogui
 # import logging
 
 def main(argv):
-	# LOG_FILENAME = "log.txt"
+	# LOG_FILENAME = "log_ndn.txt"
 	# logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
 	
 	# Prompt user for server address (port is always 6363 for NFD)
@@ -65,12 +65,18 @@ class ndnMouseClientNDN():
 		print("Routing /ndnmouse interests to udp://{0}.".format(self.server_address))
 
 		# Make interest to get movement data
-		interest = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/move"))
-		interest.setInterestLifetimeMilliseconds(self.interest_timeout)
-		interest.setMustBeFresh(True)
+		interest_move = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/move"))
+		interest_move.setInterestLifetimeMilliseconds(self.interest_timeout)
+		interest_move.setMustBeFresh(True)
 
-		# Send interest
-		self.face.expressInterest(interest, self._onData, self._onTimeout)
+		# Make interest to get click data
+		interest_click = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/click"))
+		interest_click.setInterestLifetimeMilliseconds(self.interest_timeout)
+		interest_click.setMustBeFresh(True)
+
+		# Send interests
+		self.face.expressInterest(interest_move, self._onData, self._onTimeout)
+		self.face.expressInterest(interest_click, self._onData, self._onTimeout)
 
 		# Loop forever, processing data as it comes back
 		# Additional interests are sent by _onData and _onTimeout callbacks
@@ -100,14 +106,14 @@ class ndnMouseClientNDN():
 		else:
 			self.handleMove(clean_data)
 
-		# Resend interest to get move data
+		# Resend interest to get move/click data
 		self.face.expressInterest(interest, self._onData, self._onTimeout)
 		print("Got returned data from {0}: {1}".format(data.getName().toUri(), clean_data))
 		
 
 	# Callback for when interest times out
 	def _onTimeout(self, interest):
-		# Resend interest to get move data
+		# Resend interest to get move/click data
 		self.face.expressInterest(interest, self._onData, self._onTimeout)
 
 	

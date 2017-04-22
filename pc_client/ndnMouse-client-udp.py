@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 
-import sys
+import sys, time
 import socket, ipaddress
 import pyautogui
 
+# import logging
+
 def main(argv):
+	# LOG_FILENAME = "log_udp.txt"
+	# logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
 	
 	default_address = '149.142.48.182'
 	default_port = 10888
@@ -54,9 +58,11 @@ class ndnMouseClientUDP():
 			try:
 				self.sock.sendto(message, self.server_address)
 				data, server = self.sock.recvfrom(64)
-				if data.decode().startswith("OK"):
+				if data.decode().startswith("ACK"):
 					got_timeout = False
 					print("Connected to server {0}:{1}.".format(*server))
+				else:
+					time.sleep(1)
 
 			except socket.timeout:
 				got_timeout = True

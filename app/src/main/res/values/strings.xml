@@ -53,10 +53,11 @@
     <string name="protocol_move_relative">REL</string>
     <string name="protocol_opening_request">GET</string>
     <string name="protocol_closing_request">STOP</string>
-    <string name="protocol_opening_reply">OK</string>
+    <string name="protocol_opening_reply">ACK</string>
 
     <!--ServerNDN-->
-    <string name="ndn_uri_mouse_move">/ndnmouse/move</string>
-    <string name="ndn_uri_identity">/ndnmouse/identify</string>
+    <string name="ndn_prefix_mouse_move">/ndnmouse/move</string>
+    <string name="ndn_prefix_mouse_click">/ndnmouse/click</string>
+    <string name="ndn_prefix_identity">/ndnmouse/identity</string>
 
 </resources>
