@@ -10,4 +10,20 @@
         <item>@string/pref_move_abs_value</item>
     </array>
 
+    <string-array name="pref_sensitivity_labels">
+        <item>Lower</item>
+        <item>Low</item>
+        <item>Normal</item>
+        <item>High</item>
+        <item>Higher</item>
+    </string-array>
+
+    <string-array name="pref_sensitivity_values">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+    </string-array>
+
 </resources>
