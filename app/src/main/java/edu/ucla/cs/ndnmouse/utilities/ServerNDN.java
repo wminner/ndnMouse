@@ -1,7 +1,11 @@
 package edu.ucla.cs.ndnmouse.utilities;
 
 import android.graphics.Point;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.util.Log;
+import android.widget.Toast;
 
 import net.named_data.jndn.Data;
 import net.named_data.jndn.Face;
@@ -19,6 +23,7 @@ import net.named_data.jndn.security.identity.MemoryPrivateKeyStorage;
 import net.named_data.jndn.util.Blob;
 
 import java.io.IOException;
+import java.util.HashMap;
 
 import edu.ucla.cs.ndnmouse.MouseActivity;
 import edu.ucla.cs.ndnmouse.R;
@@ -32,6 +37,7 @@ public class ServerNDN implements Runnable, Server {
     // private final int mPort = 6363;     // Default NFD port
     private boolean mServerIsRunning = false;
     private boolean mUseRelativeMovement;
+    private int mRelativeSensitivity;
     private final static int mUpdateIntervalMillis = 50;   // Number of milliseconds to wait before sending next update. May require tuning.
     private final static double mFreshnessPeriod = 0;     // Number of milliseconds data is considered fresh. May require tuning.
 
@@ -42,25 +48,35 @@ public class ServerNDN implements Runnable, Server {
     private float mRatioWidth;
     private float mRatioHeight;
     private Point mLastPos = new Point(0, 0);
+    private Handler mPrefixErrorHandler;
     // private static long mSeqNum;     // Using seq numbers seem to increase the latency a lot, removing for now...
 
-    private static final long UNREGISTERED = -1;
+    private HashMap<String, Long> mRegisteredPrefixIds = new HashMap<String, Long>();  // Keeps track of all registered prefix IDs
+    private boolean mPrefixRegisterError = false;   // Tracks error during prefix registration
     private static final int NOCLICK = -1;
-    private long mRegisteredPrefixId = UNREGISTERED;
+    private static int mExecuteClick = NOCLICK; // Tracks what click type should fulfill the next incoming click interest
     private KeyChain mKeyChain;
-    private static int mExecuteClick = NOCLICK;
 
-    public ServerNDN(MouseActivity activity, int width, int height, boolean useRelativeMovement) {
+    public ServerNDN(MouseActivity activity, int width, int height, boolean useRelativeMovement, int relativeSensitivity) {
         mMouseActivity = activity;
         mPhoneWidth = width;
         mPhoneHeight = height;
         mUseRelativeMovement = useRelativeMovement;
+        mRelativeSensitivity = relativeSensitivity;
 
         // Calculate ratios between server screen (phone) and client screen (pc)
         mRatioWidth = (float) mPCWidth / mPhoneWidth;
         mRatioHeight = (float) mPCHeight / mPhoneHeight;
 
         // mSeqNum = Math.abs(new Random().nextLong());
+
+        // Makes a toast to alert user to restart NFD
+        mPrefixErrorHandler = new Handler(Looper.getMainLooper()) {
+            @Override
+            public void handleMessage(Message msg) {
+                Toast.makeText(mMouseActivity.getApplicationContext(), "NFD doesn't appear to be running correctly. Please restart NFD and try again.", Toast.LENGTH_LONG).show();
+            }
+        };
     }
 
     @Override
@@ -87,14 +103,18 @@ public class ServerNDN implements Runnable, Server {
             setupFace();
             registerPrefixes();
 
-            if (UNREGISTERED != mRegisteredPrefixId) {
+            if (!mPrefixRegisterError) {
                 while (mServerIsRunning) {
                     // TODO does this require thread synchronization? should not send interests at the same time
                     mFace.processEvents();
                     Thread.sleep(mUpdateIntervalMillis);
                 }
             } else {
-                Log.e(TAG, "Failed to register prefix!");
+                Log.e(TAG, "One or more prefixes failed to register!");
+                mMouseActivity.finish();
+                // Make a toast notifying user to restart NFD
+                Message message = mPrefixErrorHandler.obtainMessage();
+                message.sendToTarget();
             }
         } catch (IOException|SecurityException|InterruptedException e) {
             e.printStackTrace();
@@ -138,7 +158,7 @@ public class ServerNDN implements Runnable, Server {
     private void registerPrefixes() throws IOException, SecurityException {
         // Prefix for movement updates (synchronous)
         Name prefix_move = new Name(mMouseActivity.getString(R.string.ndn_prefix_mouse_move));
-        mRegisteredPrefixId = mFace.registerPrefix(prefix_move,
+        long prefixId = mFace.registerPrefix(prefix_move,
                 new OnInterestCallback() {
                     @Override
                     public void onInterest(Name prefix, Interest interest, Face face, long interestFilterId, InterestFilter filter) {
@@ -185,14 +205,16 @@ public class ServerNDN implements Runnable, Server {
                 new OnRegisterFailed() {
                     @Override
                     public void onRegisterFailed(Name name) {
-                        mRegisteredPrefixId = UNREGISTERED;
+                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_move));
+                        mPrefixRegisterError = true;
                         Log.e(TAG, "Failed to register prefix: " + name.toUri());
                     }
                 });
+        mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_mouse_move), prefixId);
 
         // Prefix for click commands (asynchronous events)
         Name prefix_click = new Name(mMouseActivity.getString(R.string.ndn_prefix_mouse_click));
-        mRegisteredPrefixId = mFace.registerPrefix(prefix_click,
+        prefixId = mFace.registerPrefix(prefix_click,
                 new OnInterestCallback() {
                     @Override
                     public void onInterest(Name prefix, Interest interest, Face face, long interestFilterId, InterestFilter filter) {
@@ -226,10 +248,12 @@ public class ServerNDN implements Runnable, Server {
                 new OnRegisterFailed() {
                     @Override
                     public void onRegisterFailed(Name name) {
-                        mRegisteredPrefixId = UNREGISTERED;
+                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_click));
+                        mPrefixRegisterError = true;
                         Log.e(TAG, "Failed to register prefix: " + name.toUri());
                     }
                 });
+        mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_mouse_click), prefixId);
     }
 
     /**

@@ -32,6 +32,7 @@ public class ServerUDP implements Runnable, Server {
     private final int mPort;
     private boolean mServerIsRunning = false;
     private boolean mUseRelativeMovement;
+    private int mRelativeSensitivity;
     private final static int mUpdateIntervalMillis = 50;  // Number of milliseconds to wait before sending next update. May require tuning.
 
     private int mPhoneWidth;
@@ -44,13 +45,14 @@ public class ServerUDP implements Runnable, Server {
      * @param activity of the caller (so we can get position points)
      * @param port number for server to listen on
      */
-    public ServerUDP(MouseActivity activity, int port, int width, int height, boolean useRelativeMovement) {
+    public ServerUDP(MouseActivity activity, int port, int width, int height, boolean useRelativeMovement, int relativeSensitivity) {
         mMouseActivity = activity;
         mPort = port;
         mPhoneWidth = width;
         mPhoneHeight = height;
         mUseRelativeMovement = useRelativeMovement;
         mClientThreads = new HashMap<>();
+        mRelativeSensitivity = relativeSensitivity;
     }
 
     /**

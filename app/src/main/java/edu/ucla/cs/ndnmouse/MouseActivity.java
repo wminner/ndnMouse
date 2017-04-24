@@ -41,6 +41,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     private boolean mBufferAbsPos = true;
     private boolean mTouchDown = false;
     private boolean mUseRelativeMovement = true;
+    private int mRelativeSensitivity;
     private static final int mMinMovementPixelThreshold = 5;  // May require a user setting or tuning
 
     // Tap to left click variables
@@ -75,10 +76,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
                 // Create and start mServer
                 if (mUseNDN) {
-                    mServer = new ServerNDN(MouseActivity.this, mTouchpadWidth, mTouchpadHeight, mUseRelativeMovement);
+                    mServer = new ServerNDN(MouseActivity.this, mTouchpadWidth, mTouchpadHeight, mUseRelativeMovement, mRelativeSensitivity);
                     Log.d(TAG, "Creating NDN server...");
                 } else {
-                    mServer = new ServerUDP(MouseActivity.this, mPort, mTouchpadWidth, mTouchpadHeight, mUseRelativeMovement);
+                    mServer = new ServerUDP(MouseActivity.this, mPort, mTouchpadWidth, mTouchpadHeight, mUseRelativeMovement, mRelativeSensitivity);
                     Log.d(TAG, "Creating UDP server...");
                 }
 
@@ -128,6 +129,8 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             mUseRelativeMovement = !movement.equals(getString(R.string.pref_move_abs_value));
         } else if (key.equals(getString(R.string.pref_tap_to_left_click_key))) {
             mTapToLeftClick = sharedPreferences.getBoolean(key, getResources().getBoolean(R.bool.pref_tap_to_left_click_default));
+        } else if (key.equals(getString(R.string.pref_sensitivity_key))) {
+            mRelativeSensitivity = Integer.valueOf(sharedPreferences.getString(key, getString(R.string.pref_sensitivity_default)));
         }
     }
 
@@ -139,6 +142,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         String movement = sharedPreferences.getString(getString(R.string.pref_movement_key), getResources().getString(R.string.pref_movement_default));
         mUseRelativeMovement = !movement.equals(getString(R.string.pref_move_abs_value));
         mTapToLeftClick = sharedPreferences.getBoolean(getString(R.string.pref_tap_to_left_click_key), getResources().getBoolean(R.bool.pref_tap_to_left_click_default));
+        mRelativeSensitivity = Integer.valueOf(sharedPreferences.getString(getString(R.string.pref_sensitivity_key), getString(R.string.pref_sensitivity_default)));
     }
 
     /**
