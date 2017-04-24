@@ -32,7 +32,7 @@ public class ServerUDP implements Runnable, Server {
     private final int mPort;
     private boolean mServerIsRunning = false;
     private boolean mUseRelativeMovement;
-    private int mRelativeSensitivity;
+    private float mRelativeSensitivity;
     private final static int mUpdateIntervalMillis = 50;  // Number of milliseconds to wait before sending next update. May require tuning.
 
     private int mPhoneWidth;
@@ -45,7 +45,7 @@ public class ServerUDP implements Runnable, Server {
      * @param activity of the caller (so we can get position points)
      * @param port number for server to listen on
      */
-    public ServerUDP(MouseActivity activity, int port, int width, int height, boolean useRelativeMovement, int relativeSensitivity) {
+    public ServerUDP(MouseActivity activity, int port, int width, int height, boolean useRelativeMovement, float relativeSensitivity) {
         mMouseActivity = activity;
         mPort = port;
         mPhoneWidth = width;
@@ -182,6 +182,26 @@ public class ServerUDP implements Runnable, Server {
     }
 
     /**
+     * This is called whenever settings are updated, so the server can change its behavior on the fly
+     *
+     * @param key of the setting being updated
+     * @param value of the updated setting (generic type)
+     */
+    public <T> void UpdateSettings(int key, T value) {
+        switch (key) {
+            case R.string.pref_movement_key:
+                mUseRelativeMovement = (Boolean) value;
+                break;
+            case R.string.pref_sensitivity_key:
+                mRelativeSensitivity = (Float) value;
+                break;
+            default:
+                Log.e(TAG, "Error: setting to update not recognized!");
+        }
+        Log.d(TAG, "Updated " + mMouseActivity.getString(key) + " with new value " + value);
+    }
+
+    /**
      * Server parent thread spins off worker threads to do the actual transmissions
      */
     private class WorkerThread implements Runnable {
@@ -301,9 +321,9 @@ public class ServerUDP implements Runnable, Server {
                         } else
                             mLastPos.set(position.x, position.y);
                     }
-                    // Find scaled x and y position according to client's resolution
-                    int scaledX = (int) (position.x * mRatioWidth);
-                    int scaledY = (int) (position.y * mRatioHeight);
+                    // Find scaled x and y position according to sensitivity (absolute movement deprecated for now)
+                    int scaledX = (int) (position.x * mRelativeSensitivity);
+                    int scaledY = (int) (position.y * mRelativeSensitivity);
                     // Build reply packet and send out socket
                     byte[] reply = (moveType + " " + scaledX + "," + scaledY).getBytes();
                     Log.d(TAG, "Sending update: " + moveType + " " + scaledX + "," + scaledY);

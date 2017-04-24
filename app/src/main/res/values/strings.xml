@@ -49,7 +49,7 @@
     <string name="pref_move_abs_value" translatable="false">move_absolute</string>
     <string name="pref_sensitivity_key" translatable="false">pref_sensitivity</string>
     <string name="pref_sensitivity_title">Sensitivity</string>
-    <string name="pref_sensitivity_default">3</string>
+    <string name="pref_sensitivity_default">1.5</string>
 
     <!--Communication Protocol-->
     <string name="protocol_move_absolute" translatable="false">ABS</string>

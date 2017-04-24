@@ -41,7 +41,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     private boolean mBufferAbsPos = true;
     private boolean mTouchDown = false;
     private boolean mUseRelativeMovement = true;
-    private int mRelativeSensitivity;
+    private float mRelativeSensitivity;
     private static final int mMinMovementPixelThreshold = 5;  // May require a user setting or tuning
 
     // Tap to left click variables
@@ -56,6 +56,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_mouse);
         setupSharedPreferences();
+        PreferenceManager.getDefaultSharedPreferences(this).registerOnSharedPreferenceChangeListener(this);
 
         // Get extras from Intent
         Intent intent = getIntent();
@@ -96,6 +97,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        PreferenceManager.getDefaultSharedPreferences(this).unregisterOnSharedPreferenceChangeListener(this);
         mServer.stop();
     }
 
@@ -109,11 +111,11 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
-//        if (id == R.id.action_settings) {
-//            Intent startSettingsActivity = new Intent(this, SettingsActivity.class);
-//            startActivity(startSettingsActivity);
-//            return true;
-//        }
+        if (id == R.id.action_settings) {
+            Intent startSettingsActivity = new Intent(this, SettingsActivity.class);
+            startActivity(startSettingsActivity);
+            return true;
+        }
         if (id == R.id.action_keyboard) {
             Intent startKeyboardActivity = new Intent(this, KeyboardActivity.class);
             startActivity(startKeyboardActivity);
@@ -127,10 +129,13 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         if (key.equals(getString(R.string.pref_movement_key))) {
             String movement = sharedPreferences.getString(key, getResources().getString(R.string.pref_movement_default));
             mUseRelativeMovement = !movement.equals(getString(R.string.pref_move_abs_value));
+            mServer.UpdateSettings(R.string.pref_movement_key, mUseRelativeMovement);
         } else if (key.equals(getString(R.string.pref_tap_to_left_click_key))) {
+            // No need to update server setting because clicks are detected and executed by MouseActivity
             mTapToLeftClick = sharedPreferences.getBoolean(key, getResources().getBoolean(R.bool.pref_tap_to_left_click_default));
         } else if (key.equals(getString(R.string.pref_sensitivity_key))) {
-            mRelativeSensitivity = Integer.valueOf(sharedPreferences.getString(key, getString(R.string.pref_sensitivity_default)));
+            mRelativeSensitivity = Float.valueOf(sharedPreferences.getString(key, getString(R.string.pref_sensitivity_default)));
+            mServer.UpdateSettings(R.string.pref_sensitivity_key, mRelativeSensitivity);
         }
     }
 
@@ -142,7 +147,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         String movement = sharedPreferences.getString(getString(R.string.pref_movement_key), getResources().getString(R.string.pref_movement_default));
         mUseRelativeMovement = !movement.equals(getString(R.string.pref_move_abs_value));
         mTapToLeftClick = sharedPreferences.getBoolean(getString(R.string.pref_tap_to_left_click_key), getResources().getBoolean(R.bool.pref_tap_to_left_click_default));
-        mRelativeSensitivity = Integer.valueOf(sharedPreferences.getString(getString(R.string.pref_sensitivity_key), getString(R.string.pref_sensitivity_default)));
+        mRelativeSensitivity = Float.valueOf(sharedPreferences.getString(getString(R.string.pref_sensitivity_key), getString(R.string.pref_sensitivity_default)));
     }
 
     /**

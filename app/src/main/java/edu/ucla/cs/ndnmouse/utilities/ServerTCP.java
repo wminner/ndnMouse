@@ -73,6 +73,11 @@ public class ServerTCP implements Runnable, Server {
     }
 
     @Override
+    public <T> void UpdateSettings(int key, T value) {
+
+    }
+
+    @Override
     public void run() {
         try {
             mSocket = new ServerSocket(mPort);

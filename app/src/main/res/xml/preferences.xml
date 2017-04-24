@@ -6,12 +6,12 @@
         android:key="@string/pref_tap_to_left_click_key"
         android:title="@string/pref_tap_to_left_click_label" />
 
-    <ListPreference
-        android:defaultValue="@string/pref_movement_default"
-        android:entries="@array/pref_movement_labels"
-        android:entryValues="@array/pref_movement_values"
-        android:key="@string/pref_movement_key"
-        android:title="@string/pref_movement_label" />
+    <!--<ListPreference-->
+        <!--android:defaultValue="@string/pref_movement_default"-->
+        <!--android:entries="@array/pref_movement_labels"-->
+        <!--android:entryValues="@array/pref_movement_values"-->
+        <!--android:key="@string/pref_movement_key"-->
+        <!--android:title="@string/pref_movement_label" />-->
 
     <ListPreference
         android:defaultValue="@string/pref_sensitivity_default"
