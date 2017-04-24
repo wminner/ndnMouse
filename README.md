@@ -2,6 +2,8 @@
 
 ![Icon](./app/src/main/res/mipmap-xxxhdpi/ic_launcher.png)
 
+## Documentation
+
 ### Overview
 
 It's a secure control interface for a PC over named-data-networking (NDN), using a mobile device! It also has UDP support.
@@ -18,12 +20,28 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 * UDP Security: data encryption only
 * Rudimentary keyboard support (for slideshow control?)
 
+### Supported Platforms
+
+##### Severs/Producers (phone): 
+* Any mostly-modern Android phone
+
+##### Clients/Consumers (PC):
+* Any Linux distribution that can run NFD and Python3 (tested on Ubuntu 16)
+* OSX
+* Windows (UDP support only)
+
 ## How to Use
+
+### Dependencies
+* Python3 (PC)
+* PyAutoGUI (PC)
+* NFD (PC and Android)
 
 ### Install
 
-1. Install NFD on your [Android phone](https://play.google.com/store/apps/details?id=net.named_data.nfd) and the [PC](http://named-data.net/doc/NFD/current/INSTALL.html) on which you want to control the mouse
-1. Compile and install the app using Android Studio on your Android phone
+1. Install NFD on your [Android phone](https://play.google.com/store/apps/details?id=net.named_data.nfd) and the [PC](http://named-data.net/doc/NFD/current/INSTALL.html) on which you want to control the mouse.
+1. Compile and install the app using Android Studio on your Android phone.
+1. On your PC, install [Python3](https://www.python.org/downloads/) and [PyAutoGUI](https://pyautogui.readthedocs.io/en/latest/install.html)
 
 ### Running
 
