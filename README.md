@@ -23,12 +23,12 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 ### Supported Platforms
 
 ##### Severs/Producers (phone): 
-* Any mostly-modern Android phone
+* Any relatively modern Android phone
 
-##### Clients/Consumers (PC):
+##### Clients/Consumers (PC): Basically anything that can run [NFD](http://named-data.net/doc/NFD/current/INSTALL.html) and Python3
 * Any Linux distribution that can run NFD and Python3 (tested on Ubuntu 16)
 * OSX
-* Windows (UDP support only)
+* Windows (no NFD, so UDP support only)
 
 ## How to Use
 

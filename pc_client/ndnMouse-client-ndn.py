@@ -5,11 +5,12 @@ import pyndn, ipaddress
 import subprocess
 import pyautogui
 
-# import logging
+import logging
+import pickle
 
 def main(argv):
-	# LOG_FILENAME = "log_ndn.txt"
-	# logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
+	LOG_FILENAME = "log_ndn.txt"
+	logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
 	
 	# Prompt user for server address (port is always 6363 for NFD)
 	default_address = "149.142.48.182"
@@ -22,9 +23,11 @@ def main(argv):
 	if NFDIsRunning():
 		if not setupNFD(server_address):
 			print("Error: could not set up NFD route!\nExiting...")
+			logging.debug("Error: could not set up NFD route!\nExiting...")
 			exit(1)
 	else:
 		print("Error: NFD is not running!\nRun \"nfd-start\" and try again.\nExiting...")
+		logging.debug("Error: NFD is not running!\nRun \"nfd-start\" and try again.\nExiting...")
 		exit(1)
 
 	# Create server and run it
@@ -33,6 +36,7 @@ def main(argv):
 		server.run()
 	except KeyboardInterrupt:
 		print("\nExiting...")
+		logging.debug("\nExiting...")
 	finally:
 		server.shutdown()
 
@@ -62,7 +66,9 @@ class ndnMouseClientNDN():
 
 	def run(self):
 		print("Use ctrl+c quit at anytime....")
-		print("Routing /ndnmouse interests to udp://{0}.".format(self.server_address))
+		print("Routing /ndnmouse interests to Face udp://{0}.".format(self.server_address))
+		logging.debug("Use ctrl+c quit at anytime....")
+		logging.debug("Routing /ndnmouse interests to Face udp://{0}.".format(self.server_address))
 
 		# Make interest to get movement data
 		interest_move = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/move"))
@@ -108,7 +114,7 @@ class ndnMouseClientNDN():
 
 		# Resend interest to get move/click data
 		self.face.expressInterest(interest, self._onData, self._onTimeout)
-		print("Got returned data from {0}: {1}".format(data.getName().toUri(), clean_data))
+		logging.debug("Got returned data from {0}: {1}".format(data.getName().toUri(), clean_data))
 		
 
 	# Callback for when interest times out
@@ -130,7 +136,7 @@ class ndnMouseClientNDN():
 		elif updown == "full":
 			pyautogui.click(button=click)
 		else:
-			print("Invalid click type: {0} {1}".format(click, updown))
+			logging.debug("Invalid click type: {0} {1}".format(click, updown))
 
 
 	# Handle movement commands
@@ -155,7 +161,16 @@ class ndnMouseClientNDN():
 
 # Prompt user for server address and port, and validate them
 def getServerAddress(default_addr):
-	addr = pyautogui.prompt(text="Enter server IP address", title="Server Address", default=default_addr)
+	last_ip_addr = "temp_ndnMouse.pkl"
+
+	# Try to get pickle of last IP address
+	try:
+		with open(last_ip_addr, 'rb') as fp:
+			last_addr = pickle.load(fp)
+	except IOError:
+		last_addr = default_addr
+
+	addr = pyautogui.prompt(text="Enter server IP address", title="Server Address", default=last_addr)
 
 	# Validate address
 	try:
@@ -164,15 +179,19 @@ def getServerAddress(default_addr):
 		pyautogui.alert(text="Address \"{0}\" is not valid!".format(addr), title="Invalid Address", button='Exit')
 		sys.exit(1)
 
+	# Save the last used IP address to pickle file
+	with open(last_ip_addr, 'wb') as fp:
+		pickle.dump(addr, fp)
+
 	return addr
 
 
 # Prompt user for password, and validate it
 def getPassword():
 	password = pyautogui.password(text="Enter the server's password", title="Password", mask='*')
-	if not password:
-		pyautogui.alert(text="Password should not be empty!", title="Invalid Password", button='Exit')
-		sys.exit(1)
+	# if not password:
+	# 	pyautogui.alert(text="Password should not be empty!", title="Invalid Password", button='Exit')
+	# 	sys.exit(1)
 
 	return password
 

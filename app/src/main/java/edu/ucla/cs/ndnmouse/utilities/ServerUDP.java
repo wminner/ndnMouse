@@ -32,7 +32,7 @@ public class ServerUDP implements Runnable, Server {
     private final int mPort;
     private boolean mServerIsRunning = false;
     private boolean mUseRelativeMovement;
-    private float mRelativeSensitivity;
+    private float mSensitivity;
     private final static int mUpdateIntervalMillis = 50;  // Number of milliseconds to wait before sending next update. May require tuning.
 
     private int mPhoneWidth;
@@ -45,14 +45,14 @@ public class ServerUDP implements Runnable, Server {
      * @param activity of the caller (so we can get position points)
      * @param port number for server to listen on
      */
-    public ServerUDP(MouseActivity activity, int port, int width, int height, boolean useRelativeMovement, float relativeSensitivity) {
+    public ServerUDP(MouseActivity activity, int port, int width, int height, boolean useRelativeMovement, float sensitivity) {
         mMouseActivity = activity;
         mPort = port;
         mPhoneWidth = width;
         mPhoneHeight = height;
         mUseRelativeMovement = useRelativeMovement;
         mClientThreads = new HashMap<>();
-        mRelativeSensitivity = relativeSensitivity;
+        mSensitivity = sensitivity;
     }
 
     /**
@@ -193,7 +193,7 @@ public class ServerUDP implements Runnable, Server {
                 mUseRelativeMovement = (Boolean) value;
                 break;
             case R.string.pref_sensitivity_key:
-                mRelativeSensitivity = (Float) value;
+                mSensitivity = (Float) value;
                 break;
             default:
                 Log.e(TAG, "Error: setting to update not recognized!");
@@ -232,10 +232,8 @@ public class ServerUDP implements Runnable, Server {
             mReplyAddr = packet.getAddress();
             mReplyPort = packet.getPort();
 
-            if (parseInitialRequest(packet))
-                start();
-            else
-                stop();
+            // Start serving the client
+            start();
         }
 
         /**
@@ -257,6 +255,7 @@ public class ServerUDP implements Runnable, Server {
 
         /**
          * Parses the initial GET packet and retrieves necessary info in order to respond correctly
+         * NOTE: not currently needed as absolute movement is not supported
          *
          * @param initPacket initial packet that the client sends to the server to get position updates
          * @return boolean true if all parsing completed successfully, otherwise false
@@ -290,7 +289,12 @@ public class ServerUDP implements Runnable, Server {
             return true;
         }
 
-        public void sendAck() throws IOException {
+        /**
+         * Send acknowledgement to client that you received keep alive
+         *
+         * @throws IOException for error during socket sending
+         */
+        void sendAck() throws IOException {
             byte[] reply = (mMouseActivity.getString(R.string.protocol_opening_reply)).getBytes();
             DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
             mSocket.send(replyPacket);
@@ -322,8 +326,8 @@ public class ServerUDP implements Runnable, Server {
                             mLastPos.set(position.x, position.y);
                     }
                     // Find scaled x and y position according to sensitivity (absolute movement deprecated for now)
-                    int scaledX = (int) (position.x * mRelativeSensitivity);
-                    int scaledY = (int) (position.y * mRelativeSensitivity);
+                    int scaledX = (int) (position.x * mSensitivity);
+                    int scaledY = (int) (position.y * mSensitivity);
                     // Build reply packet and send out socket
                     byte[] reply = (moveType + " " + scaledX + "," + scaledY).getBytes();
                     Log.d(TAG, "Sending update: " + moveType + " " + scaledX + "," + scaledY);

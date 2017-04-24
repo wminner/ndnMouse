@@ -4,11 +4,12 @@ import sys, time
 import socket, ipaddress
 import pyautogui
 
-# import logging
+import logging
+import pickle
 
 def main(argv):
-	# LOG_FILENAME = "log_udp.txt"
-	# logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
+	LOG_FILENAME = "log_udp.txt"
+	logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
 	
 	default_address = '149.142.48.182'
 	default_port = 10888
@@ -27,6 +28,7 @@ def main(argv):
 		server.run()
 	except KeyboardInterrupt:
 		print("\nExiting...")
+		logging.debug("\nExiting...")
 	finally:
 		server.shutdown()
 
@@ -38,7 +40,7 @@ class ndnMouseClientUDP():
 	
 	# pyautogui variables
 	transition_time = 0
-	screen_size = pyautogui.size()
+	# screen_size = pyautogui.size()
 	pyautogui.FAILSAFE = False
 	pyautogui.PAUSE = 0
 	
@@ -53,14 +55,15 @@ class ndnMouseClientUDP():
 	def _refreshConnection(self):
 		got_timeout = True
 		while got_timeout:
-			message = "GET {0}x{1}\n".format(*self.screen_size).encode()
-			print("Sending message: {0}".format(message))
+			# message = "GET {0}x{1}\n".format(*self.screen_size).encode()
+			message = b"GET"
+			logging.debug("Sending message: {0}".format(message))
 			try:
 				self.sock.sendto(message, self.server_address)
 				data, server = self.sock.recvfrom(64)
 				if data.decode().startswith("ACK"):
 					got_timeout = False
-					print("Connected to server {0}:{1}.".format(*server))
+					logging.debug("Connected to server {0}:{1}.".format(*server))
 				else:
 					time.sleep(1)
 
@@ -76,6 +79,8 @@ class ndnMouseClientUDP():
 
 		print("Use ctrl+c quit at anytime....")
 		print("Listening to {0}, port {1}.".format(*self.server_address))
+		logging.debug("Use ctrl+c quit at anytime....")
+		logging.debug("Listening to {0}, port {1}.".format(*self.server_address))
 				
 		# Receive and process mouse updates forever
 		while True:
@@ -96,13 +101,13 @@ class ndnMouseClientUDP():
 			else:	# Got acknowledgement message from server, do nothing
 				continue
 
-			print("Received from server {0}:{1}: {2}".format(server[0], server[1], data))
+			logging.debug("Received from server {0}:{1}: {2}".format(server[0], server[1], data))
 		
 
 	# Shutdown the server
 	def shutdown(self):
 		message = b"STOP\n"
-		# print("Sending message: {0}".format(message))
+		# logging.debug("Sending message: {0}".format(message))
 		self.sock.sendto(message, self.server_address)
 		self.sock.close()
 
@@ -119,7 +124,7 @@ class ndnMouseClientUDP():
 		elif updown == "full":
 			pyautogui.click(button=click)
 		else:
-			print("Invalid click type: {0} {1}".format(click, updown))
+			logging.debug("Invalid click type: {0} {1}".format(click, updown))
 
 
 	# Handle movement commands
@@ -144,7 +149,16 @@ class ndnMouseClientUDP():
 
 # Prompt user for server address and port, and validate
 def getServerAddress(default_addr):
-	addr = pyautogui.prompt(text="Enter server IP address", title="Server Address", default=default_addr)
+	last_ip_addr = "temp_ndnMouse.pkl"
+
+	# Try to get pickle of last IP address
+	try:
+		with open(last_ip_addr, 'rb') as fp:
+			last_addr = pickle.load(fp)
+	except IOError:
+		last_addr = default_addr
+	
+	addr = pyautogui.prompt(text="Enter server IP address", title="Server Address", default=last_addr)
 	
 	# Validate address
 	try:
@@ -152,6 +166,10 @@ def getServerAddress(default_addr):
 	except ValueError:
 		pyautogui.alert(text="Address \"{0}\" is not valid!".format(addr), title="Invalid Address", button='Exit')
 		sys.exit(1)
+
+	# Save the last used IP address to pickle file
+	with open(last_ip_addr, 'wb') as fp:
+		pickle.dump(addr, fp)
 
 	return addr
 
@@ -175,9 +193,9 @@ def getSeverPort(default_port):
 # Prompt user for password, and validate it
 def getPassword():
 	password = pyautogui.password(text="Enter the server's password", title="Password", mask='*')
-	if not password:
-		pyautogui.alert(text="Password should not be empty!", title="Invalid Password", button='Exit')
-		sys.exit(1)
+	# if not password:
+	# 	pyautogui.alert(text="Password should not be empty!", title="Invalid Password", button='Exit')
+	# 	sys.exit(1)
 
 	return password
 

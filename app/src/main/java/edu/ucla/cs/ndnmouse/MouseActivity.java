@@ -16,7 +16,6 @@ import android.widget.Button;
 import android.widget.TextView;
 
 import java.io.IOException;
-import java.util.Calendar;
 
 import edu.ucla.cs.ndnmouse.utilities.Server;
 import edu.ucla.cs.ndnmouse.utilities.ServerNDN;
@@ -33,7 +32,6 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     private static int mTouchpadHeight;
     private TextView mTouchpadTextView;
     private Server mServer;
-    // private Thread mServerThread;
 
     // Relative and absolute movement variables
     private Point mAbsPos;
@@ -41,7 +39,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     private boolean mBufferAbsPos = true;
     private boolean mTouchDown = false;
     private boolean mUseRelativeMovement = true;
-    private float mRelativeSensitivity;
+    private float mSensitivity;
     private static final int mMinMovementPixelThreshold = 5;  // May require a user setting or tuning
 
     // Tap to left click variables
@@ -77,10 +75,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
                 // Create and start mServer
                 if (mUseNDN) {
-                    mServer = new ServerNDN(MouseActivity.this, mTouchpadWidth, mTouchpadHeight, mUseRelativeMovement, mRelativeSensitivity);
+                    mServer = new ServerNDN(MouseActivity.this, mTouchpadWidth, mTouchpadHeight, mUseRelativeMovement, mSensitivity);
                     Log.d(TAG, "Creating NDN server...");
                 } else {
-                    mServer = new ServerUDP(MouseActivity.this, mPort, mTouchpadWidth, mTouchpadHeight, mUseRelativeMovement, mRelativeSensitivity);
+                    mServer = new ServerUDP(MouseActivity.this, mPort, mTouchpadWidth, mTouchpadHeight, mUseRelativeMovement, mSensitivity);
                     Log.d(TAG, "Creating UDP server...");
                 }
 
@@ -134,8 +132,8 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             // No need to update server setting because clicks are detected and executed by MouseActivity
             mTapToLeftClick = sharedPreferences.getBoolean(key, getResources().getBoolean(R.bool.pref_tap_to_left_click_default));
         } else if (key.equals(getString(R.string.pref_sensitivity_key))) {
-            mRelativeSensitivity = Float.valueOf(sharedPreferences.getString(key, getString(R.string.pref_sensitivity_default)));
-            mServer.UpdateSettings(R.string.pref_sensitivity_key, mRelativeSensitivity);
+            mSensitivity = Float.valueOf(sharedPreferences.getString(key, getString(R.string.pref_sensitivity_default)));
+            mServer.UpdateSettings(R.string.pref_sensitivity_key, mSensitivity);
         }
     }
 
@@ -147,7 +145,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         String movement = sharedPreferences.getString(getString(R.string.pref_movement_key), getResources().getString(R.string.pref_movement_default));
         mUseRelativeMovement = !movement.equals(getString(R.string.pref_move_abs_value));
         mTapToLeftClick = sharedPreferences.getBoolean(getString(R.string.pref_tap_to_left_click_key), getResources().getBoolean(R.bool.pref_tap_to_left_click_default));
-        mRelativeSensitivity = Float.valueOf(sharedPreferences.getString(getString(R.string.pref_sensitivity_key), getString(R.string.pref_sensitivity_default)));
+        mSensitivity = Float.valueOf(sharedPreferences.getString(getString(R.string.pref_sensitivity_key), getString(R.string.pref_sensitivity_default)));
     }
 
     /**
@@ -313,8 +311,4 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         mLastRelPos.set(mAbsPos.x, mAbsPos.y);
         return relativeDiff;
     }
-
-//    public void setServerThread(Thread thread) {
-//        mServerThread = thread;
-//    }
 }

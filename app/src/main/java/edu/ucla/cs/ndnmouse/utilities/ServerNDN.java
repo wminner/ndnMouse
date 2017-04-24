@@ -24,6 +24,7 @@ import net.named_data.jndn.util.Blob;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.LinkedList;
 
 import edu.ucla.cs.ndnmouse.MouseActivity;
 import edu.ucla.cs.ndnmouse.R;
@@ -37,7 +38,7 @@ public class ServerNDN implements Runnable, Server {
     // private final int mPort = 6363;     // Default NFD port
     private boolean mServerIsRunning = false;
     private boolean mUseRelativeMovement;
-    private float mRelativeSensitivity;
+    private float mSensitivity;
     private final static int mUpdateIntervalMillis = 50;   // Number of milliseconds to wait before sending next update. May require tuning.
     private final static double mFreshnessPeriod = 0;     // Number of milliseconds data is considered fresh. May require tuning.
 
@@ -53,16 +54,15 @@ public class ServerNDN implements Runnable, Server {
 
     private HashMap<String, Long> mRegisteredPrefixIds = new HashMap<String, Long>();  // Keeps track of all registered prefix IDs
     private boolean mPrefixRegisterError = false;   // Tracks error during prefix registration
-    private static final int NOCLICK = -1;
-    private static int mExecuteClick = NOCLICK; // Tracks what click type should fulfill the next incoming click interest
+    private LinkedList<Integer> mClickQueue = new LinkedList<Integer>();
     private KeyChain mKeyChain;
 
-    public ServerNDN(MouseActivity activity, int width, int height, boolean useRelativeMovement, float relativeSensitivity) {
+    public ServerNDN(MouseActivity activity, int width, int height, boolean useRelativeMovement, float sensitivity) {
         mMouseActivity = activity;
         mPhoneWidth = width;
         mPhoneHeight = height;
         mUseRelativeMovement = useRelativeMovement;
-        mRelativeSensitivity = relativeSensitivity;
+        mSensitivity = sensitivity;
 
         // Calculate ratios between server screen (phone) and client screen (pc)
         mRatioWidth = (float) mPCWidth / mPhoneWidth;
@@ -152,8 +152,8 @@ public class ServerNDN implements Runnable, Server {
     /**
      * Setup prefixes that this server will respond to
      *
-     * @throws IOException
-     * @throws SecurityException
+     * @throws IOException for putting data at Face
+     * @throws SecurityException for Face registration
      */
     private void registerPrefixes() throws IOException, SecurityException {
         // Prefix for movement updates (synchronous)
@@ -186,8 +186,8 @@ public class ServerNDN implements Runnable, Server {
                                 mLastPos.set(position.x, position.y);
                         }
                         // Find scaled x and y position according to sensitivity (absolute movement deprecated for now)
-                        int scaledX = (int) (position.x * mRelativeSensitivity);
-                        int scaledY = (int) (position.y * mRelativeSensitivity);
+                        int scaledX = (int) (position.x * mSensitivity);
+                        int scaledY = (int) (position.y * mSensitivity);
                         // Build reply string and set data contents
                         String replyString = moveType + " " + scaledX + "," + scaledY;
                         // Log.d(TAG, "Sending update: " + replyString);
@@ -224,12 +224,11 @@ public class ServerNDN implements Runnable, Server {
                         replyData.getMetaInfo().setFreshnessPeriod(mFreshnessPeriod);
 
                         // If no click has occurred, return let the interest timeout
-                        if (NOCLICK == mExecuteClick) {
+                        if (mClickQueue.isEmpty())
                             return;
-                        }
 
                         // Build reply string and set data contents
-                        String replyString = mMouseActivity.getString(mExecuteClick);
+                        String replyString = mMouseActivity.getString(mClickQueue.remove());
                         // Log.d(TAG, "Sending update: " + replyString);
                         replyData.setContent(new Blob(replyString));
 
@@ -240,9 +239,6 @@ public class ServerNDN implements Runnable, Server {
                             e.printStackTrace();
                             Log.e(TAG, "Failed to put data.");
                         }
-
-                        // Reset click so we only send it out once
-                        mExecuteClick = NOCLICK;
                     }
                 },
                 new OnRegisterFailed() {
@@ -264,7 +260,8 @@ public class ServerNDN implements Runnable, Server {
      */
     @Override
     public void ExecuteClick(int click) throws IOException {
-        mExecuteClick = click;
+        if (mClickQueue.isEmpty() || click != mClickQueue.peek())
+            mClickQueue.add(click);
     }
 
     /**
@@ -279,7 +276,7 @@ public class ServerNDN implements Runnable, Server {
                 mUseRelativeMovement = (Boolean) value;
                 break;
             case R.string.pref_sensitivity_key:
-                mRelativeSensitivity = (Float) value;
+                mSensitivity = (Float) value;
                 break;
             default:
                 Log.e(TAG, "Error: setting to update not recognized!");
