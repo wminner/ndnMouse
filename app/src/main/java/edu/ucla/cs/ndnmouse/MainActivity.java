@@ -21,11 +21,11 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = MainActivity.class.getSimpleName();
 
-    private static String mServerPassword = "1234";
+    private static String mServerPassword = "1234"; // Temp password for testing
     private TextView mPortTextView;
     private TextView mAddressTextView;
-    private boolean mUseNDN = true;
-    private boolean mMonitorIPAddress;
+    private boolean mUseNDN = true;                 // Setting to use NDN as the server protocol (otherwise UDP)
+    private boolean mMonitorIPAddress;              // Controls periodic updates of the IP address field every 5 seconds
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

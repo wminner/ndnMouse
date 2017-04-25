@@ -25,7 +25,7 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 ##### Severs/Producers (phone): 
 * Any relatively modern Android phone
 
-##### Clients/Consumers (PC): Basically anything that can run [NFD](http://named-data.net/doc/NFD/current/INSTALL.html) and Python3
+##### Clients/Consumers (PC): basically anything that can run [NFD](http://named-data.net/doc/NFD/current/INSTALL.html) and Python3
 * Any Linux distribution that can run NFD and Python3 (tested on Ubuntu 16)
 * OSX
 * Windows (no NFD, so UDP support only)
@@ -46,9 +46,9 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 ### Running
 
 1. Make sure NFD is started on both your phone (the server/producer) and your PC (the client/consumer). Use the NFD app to start it on Android. On PC, use `nfd-start`.
-1. On your phone, start the server.
-1. On your PC, execute one of the Python scripts in the [pc_client](./pc_client) directory (except the TCP one, which isn't currently supported).
+1. On your phone, start the server within ndnMouse (you can choose NDN or UDP protocol).
+1. On your PC, execute the matching-protocol Python script in the [pc_client](./pc_client) directory.
 1. Control :mouse::exclamation:
 
 ## License
-TBD
+See [here](./LICENSE)

@@ -16,6 +16,13 @@ import android.widget.Button;
 import android.widget.TextView;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.KeySpec;
+import java.util.Arrays;
+
+import javax.crypto.spec.SecretKeySpec;
 
 import edu.ucla.cs.ndnmouse.utilities.Server;
 import edu.ucla.cs.ndnmouse.utilities.ServerNDN;
@@ -25,29 +32,31 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
     private static final String TAG = MouseActivity.class.getSimpleName();
 
-    private static int mPort;
-    private static String mPassword;
-    private static boolean mUseNDN;
-    private static int mTouchpadWidth;
-    private static int mTouchpadHeight;
-    private TextView mTouchpadTextView;
-    private Server mServer;
+    private static int mPort;                                   // Port of the server: NDN = 6363, UDP = 10888
+    private static boolean mUseNDN;                             // Setting to use NDN as the server protocol (otherwise UDP)
+    private static int mTouchpadWidth;                          // Pixel width of the touchpad
+    private static int mTouchpadHeight;                         // Pixel height of the touchpad
+    private TextView mTouchpadTextView;                         // Touchpad TextView reference
+    private Server mServer;                                     // Server/Producer object that will run in its own thread
 
     // Relative and absolute movement variables
-    private Point mAbsPos;
-    private Point mLastRelPos;
-    private boolean mBufferAbsPos = true;
-    private boolean mTouchDown = false;
-    private boolean mUseRelativeMovement = true;
-    private float mSensitivity;
-    private static final int mMinMovementPixelThreshold = 5;  // May require a user setting or tuning
+    private Point mAbsPos;                                      // Current absolute position on touchpad
+    private Point mLastRelPos;                                  // Used to calculate relative position differences
+    private boolean mBufferAbsPos = true;                       // Used to decide when to buffer an absolute position (to get an accurate relative movement)
+    private boolean mTouchDown = false;                         // User is currently touching down on touchpad (has not lifted yet)
+    private boolean mUseRelativeMovement = true;                // Always true (as absolute movement no longer support)
+    private float mSensitivity;                                 // Sensitivity multiplier for mouse movement control
+    private static final int mMinMovementPixelThreshold = 5;    // Min change in pixels to count as a movement update (otherwise same position)
 
     // Tap to left click variables
-    private boolean mTapToLeftClick = false;
-    private long mTouchDownTime = -1;
-    private Point mTouchDownPos;
-    private static final long mTapClickMillisThreshold = 500; // May require a user setting or tuning
-    private static final int mTapClickPixelThreshold = 5;     // May require tuning
+    private boolean mTapToLeftClick = false;                    // Setting to detect tap -> trigger left click
+    private long mTouchDownTime = -1;                           // Time when user last touched down on touchpad
+    private Point mTouchDownPos;                                // Location when user last touched down on touchpad
+    private static final long mTapClickMillisThreshold = 500;   // Max num of ms between touch down and touch up to count as a tap-click
+    private static final int mTapClickPixelThreshold = 5;       // Max num of pixel difference between touch down and touch up to count as a tap-click
+
+    // Password variables
+    private static String mPassword;                            // User entered password
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,6 +74,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         mTouchpadTextView = (TextView) findViewById(R.id.tv_touchpad);
         // Find out upper-left coordinate, and width/height of touchpad box
         final TextView mTouchpadTextView = (TextView) findViewById(R.id.tv_touchpad);
+        // Ensures that touchpad textview is initialized before these lines are executed
         mTouchpadTextView.post(new Runnable() {
             @Override
             public void run() {
@@ -73,16 +83,25 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                 Log.d(TAG, String.format("Touchpad width is %d", mTouchpadWidth));
                 Log.d(TAG, String.format("Touchpad height is %d", mTouchpadHeight));
 
-                // Create and start mServer
-                if (mUseNDN) {
-                    mServer = new ServerNDN(MouseActivity.this, mTouchpadWidth, mTouchpadHeight, mUseRelativeMovement, mSensitivity);
-                    Log.d(TAG, "Creating NDN server...");
-                } else {
-                    mServer = new ServerUDP(MouseActivity.this, mPort, mTouchpadWidth, mTouchpadHeight, mUseRelativeMovement, mSensitivity);
-                    Log.d(TAG, "Creating UDP server...");
-                }
+                try {
+                    // Get password key
+                    SecretKeySpec keySpec = makeKeyFromPassword(mPassword);
 
-                mServer.start();
+                    // Create and start mServer
+                    if (mUseNDN) {
+                        mServer = new ServerNDN(MouseActivity.this, mSensitivity, keySpec);
+                        Log.d(TAG, "Creating NDN server...");
+                    } else {
+                        mServer = new ServerUDP(MouseActivity.this, mPort, mSensitivity, keySpec);
+                        Log.d(TAG, "Creating UDP server...");
+                    }
+                    mServer.start();
+
+                } catch (UnsupportedEncodingException | NoSuchAlgorithmException e) {
+                    e.printStackTrace();
+                    Log.e(TAG, "Error: failed to create KeySpec! Aborting...");
+                    finish();
+                }
             }
         });
 
@@ -310,5 +329,11 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         }
         mLastRelPos.set(mAbsPos.x, mAbsPos.y);
         return relativeDiff;
+    }
+
+    private SecretKeySpec makeKeyFromPassword(String password) throws UnsupportedEncodingException, NoSuchAlgorithmException {
+        byte[] key = password.getBytes("UTF-8");
+        MessageDigest md5 = MessageDigest.getInstance("MD5");
+        return new SecretKeySpec(md5.digest(key), "AES");
     }
 }

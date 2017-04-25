@@ -13,6 +13,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
+import javax.crypto.spec.SecretKeySpec;
+
 import edu.ucla.cs.ndnmouse.MouseActivity;
 import edu.ucla.cs.ndnmouse.R;
 
@@ -25,19 +27,22 @@ import edu.ucla.cs.ndnmouse.R;
 public class ServerUDP implements Runnable, Server {
 
     private static final String TAG = ServerUDP.class.getSimpleName();
+    private MouseActivity mMouseActivity;                   // Reference to calling activity
 
-    private MouseActivity mMouseActivity;
+    private DatagramSocket mSocket;                         // UDP socket used to send and receive
+    private final int mPort;                                // Port number (always 10888)
+    private boolean mServerIsRunning = false;               // Helps start and stop the server main thread
+    private boolean mUseRelativeMovement;                   // Setting to use relative movement, or absolute movement (deprecated)
+    private float mSensitivity;                             // Sensitivity multiplier for relative movement
+    private final static int mUpdateIntervalMillis = 50;    // Number of milliseconds to wait before sending next update. May require tuning.
 
-    private DatagramSocket mSocket;
-    private final int mPort;
-    private boolean mServerIsRunning = false;
-    private boolean mUseRelativeMovement;
-    private float mSensitivity;
-    private final static int mUpdateIntervalMillis = 50;  // Number of milliseconds to wait before sending next update. May require tuning.
 
-    private int mPhoneWidth;
-    private int mPhoneHeight;
-    private HashMap<InetAddress, WorkerThread> mClientThreads;
+    private int mPhoneWidth;                                    // Supporting absolute movement (deprecated)
+    private int mPhoneHeight;                                   // Supporting absolute movement (deprecated)
+    private HashMap<InetAddress, WorkerThread> mClientThreads;  // Holds all active worker threads that are servicing clients
+
+    // Password variables
+    SecretKeySpec mKey;
 
     /**
      * Constructor for server
@@ -45,14 +50,15 @@ public class ServerUDP implements Runnable, Server {
      * @param activity of the caller (so we can get position points)
      * @param port number for server to listen on
      */
-    public ServerUDP(MouseActivity activity, int port, int width, int height, boolean useRelativeMovement, float sensitivity) {
+    public ServerUDP(MouseActivity activity, int port, float sensitivity, SecretKeySpec key) {
         mMouseActivity = activity;
         mPort = port;
-        mPhoneWidth = width;
-        mPhoneHeight = height;
-        mUseRelativeMovement = useRelativeMovement;
+//        mPhoneWidth = width;
+//        mPhoneHeight = height;
+//        mUseRelativeMovement = useRelativeMovement;
         mClientThreads = new HashMap<>();
         mSensitivity = sensitivity;
+        mKey = key;
     }
 
     /**
@@ -206,17 +212,19 @@ public class ServerUDP implements Runnable, Server {
      */
     private class WorkerThread implements Runnable {
 
-        private boolean mWorkerIsRunning = false;
+        private boolean mWorkerIsRunning = false;   // Helps start and stop this worker thread
 
-        private final DatagramSocket mSocket;
-        final InetAddress mReplyAddr;
-        final int mReplyPort;
+        private final DatagramSocket mSocket;   // Shared UDP socket for all worker threads
+        final InetAddress mReplyAddr;           // Client's address this will reply to
+        final int mReplyPort;                   // Client's port this will reply to
 
+        // Variables support absolute movement (deprecated)
         private int mPCWidth;
         private int mPCHeight;
         private float mRatioWidth;
         private float mRatioHeight;
 
+        // Holds last position sent out (to save on updates when no movement detected)
         private Point mLastPos = new Point(0, 0);
 
         /**
