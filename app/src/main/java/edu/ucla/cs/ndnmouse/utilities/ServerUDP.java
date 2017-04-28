@@ -8,57 +8,40 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
-import java.net.SocketException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-
-import javax.crypto.spec.SecretKeySpec;
 
 import edu.ucla.cs.ndnmouse.MouseActivity;
 import edu.ucla.cs.ndnmouse.R;
 
 /**
  * Class to provide UDP communication with the PC client
- *
- * Based off of example code at:
- * https://developer.android.com/samples/PermissionRequest/src/com.example.android.permissionrequest/SimpleWebServer.html
  */
 public class ServerUDP implements Runnable, Server {
 
     private static final String TAG = ServerUDP.class.getSimpleName();
-    private MouseActivity mMouseActivity;                   // Reference to calling activity
+    MouseActivity mMouseActivity;                   // Reference to calling activity
 
-    private DatagramSocket mSocket;                         // UDP socket used to send and receive
-    private final int mPort;                                // Port number (always 10888)
-    private boolean mServerIsRunning = false;               // Helps start and stop the server main thread
-    private boolean mUseRelativeMovement;                   // Setting to use relative movement, or absolute movement (deprecated)
-    private float mSensitivity;                             // Sensitivity multiplier for relative movement
-    private final static int mUpdateIntervalMillis = 50;    // Number of milliseconds to wait before sending next update. May require tuning.
+    DatagramSocket mSocket;                         // UDP socket used to send and receive
+    final int mPort;                                // Port number (always 10888)
+    boolean mServerIsRunning = false;               // Helps start and stop the server main thread
+    float mSensitivity;                             // Sensitivity multiplier for relative movement
 
-
-    private int mPhoneWidth;                                    // Supporting absolute movement (deprecated)
-    private int mPhoneHeight;                                   // Supporting absolute movement (deprecated)
-    private HashMap<InetAddress, WorkerThread> mClientThreads;  // Holds all active worker threads that are servicing clients
-
-    // Password variables
-    SecretKeySpec mKey;
+    private HashMap<InetAddress, WorkerThread> mClientThreads;    // Holds all active worker threads that are servicing clients
 
     /**
      * Constructor for server
      *
      * @param activity of the caller (so we can get position points)
      * @param port number for server to listen on
+     * @param sensitivity multiplier for scaling movement
      */
-    public ServerUDP(MouseActivity activity, int port, float sensitivity, SecretKeySpec key) {
+    public ServerUDP(MouseActivity activity, int port, float sensitivity) {
         mMouseActivity = activity;
         mPort = port;
-//        mPhoneWidth = width;
-//        mPhoneHeight = height;
-//        mUseRelativeMovement = useRelativeMovement;
         mClientThreads = new HashMap<>();
         mSensitivity = sensitivity;
-        mKey = key;
     }
 
     /**
@@ -68,7 +51,6 @@ public class ServerUDP implements Runnable, Server {
         mServerIsRunning = true;
         Thread thread = new Thread(this);
         thread.start();
-        // mMouseActivity.setServerThread(thread);
         Log.d(TAG, "Started UDP server... " + getIPAddress(true) + ":" + mPort);
     }
 
@@ -102,27 +84,39 @@ public class ServerUDP implements Runnable, Server {
             mSocket = new DatagramSocket(mPort);
             while (mServerIsRunning) {
                 byte[] buf = new byte[64];
-                // Get request
+                // Get incoming packet
                 DatagramPacket packet = new DatagramPacket(buf, buf.length);
                 mSocket.receive(packet);  // Blocks program flow
 
-                // Check message for new client
-                String data = new String(packet.getData());
+                // Get data from packet
+                byte[] data = packet.getData();
+
                 // Trim null bytes off end
-                data = data.substring(0, data.indexOf('\0'));
+                String msg = new String(data);
+                msg = msg.substring(0, msg.indexOf('\0'));
 
                 // If new client...
-                if (data.startsWith(mMouseActivity.getString(R.string.protocol_opening_request))) {
-                    if (!mClientThreads.containsKey(packet.getAddress())) {
-                        // Start a new worker thread to handle updates, and store its reference
-                        WorkerThread worker = new WorkerThread(mSocket, packet);
-                        mClientThreads.put(packet.getAddress(), worker);
-                        Log.d(TAG, "Number of clients: " + mClientThreads.size());
-                    } else {
-                        mClientThreads.get(packet.getAddress()).sendAck();
+                if (msg.startsWith(mMouseActivity.getString(R.string.protocol_opening_request))) {
+                    // If client is already being serviced, kill its worker and start a new one
+                    if (mClientThreads.containsKey(packet.getAddress())) {
+                        mClientThreads.get(packet.getAddress()).stop();
+                        mClientThreads.remove(packet.getAddress());
                     }
+
+                    // Start a new worker thread for the client
+                    WorkerThread worker = new WorkerThread(mSocket, packet);
+                    worker.start();
+                    mClientThreads.put(packet.getAddress(), worker);
+                    Log.d(TAG, "Number of clients: " + mClientThreads.size());
+                }
+
+                // Otherwise if existing client is requesting heartbeat...
+                else if (msg.startsWith(mMouseActivity.getString(R.string.protocol_heartbeat_request))) {
+                    if (mClientThreads.containsKey(packet.getAddress()))
+                        mClientThreads.get(packet.getAddress()).sendAck(false);
+
                 // Otherwise if existing client no longer wants updates...
-                } else if (data.startsWith(mMouseActivity.getString(R.string.protocol_closing_request))) {
+                } else if (msg.startsWith(mMouseActivity.getString(R.string.protocol_closing_request))) {
                     // Look up its thread and stop it
                     if (mClientThreads.containsKey(packet.getAddress())) {
                         mClientThreads.get(packet.getAddress()).stop();
@@ -136,12 +130,12 @@ public class ServerUDP implements Runnable, Server {
     }
 
     /**
-     * Send a click command to an existing client
+     * Send a click command to all current clients
      *
      * @param click identifier for the type of click
      * @throws IOException for socket IO error
      */
-    public void ExecuteClick(int click) throws IOException {
+    public void executeClick(int click) throws IOException {
         for (WorkerThread client : mClientThreads.values()) {
             if (null != client.mReplyAddr && 0 != client.mReplyPort) {
                 byte[] reply = (mMouseActivity.getString(click)).getBytes();
@@ -195,9 +189,6 @@ public class ServerUDP implements Runnable, Server {
      */
     public <T> void UpdateSettings(int key, T value) {
         switch (key) {
-            case R.string.pref_movement_key:
-                mUseRelativeMovement = (Boolean) value;
-                break;
             case R.string.pref_sensitivity_key:
                 mSensitivity = (Float) value;
                 break;
@@ -210,38 +201,26 @@ public class ServerUDP implements Runnable, Server {
     /**
      * Server parent thread spins off worker threads to do the actual transmissions
      */
-    private class WorkerThread implements Runnable {
+    class WorkerThread implements Runnable {
 
-        private boolean mWorkerIsRunning = false;   // Helps start and stop this worker thread
+        boolean mWorkerIsRunning = false;   // Helps start and stop this worker thread
 
         private final DatagramSocket mSocket;   // Shared UDP socket for all worker threads
         final InetAddress mReplyAddr;           // Client's address this will reply to
         final int mReplyPort;                   // Client's port this will reply to
-
-        // Variables support absolute movement (deprecated)
-        private int mPCWidth;
-        private int mPCHeight;
-        private float mRatioWidth;
-        private float mRatioHeight;
-
-        // Holds last position sent out (to save on updates when no movement detected)
-        private Point mLastPos = new Point(0, 0);
+        final static int mUpdateIntervalMillis = 50;    // Number of milliseconds to wait before sending next update. May require tuning.
 
         /**
          * Constructor
          *
          * @param socket shared UDP socket from that parent is managing
          * @param packet initial packet that client uses to establish a connection with the server
-         * @throws SocketException for socket IO error
          */
-        WorkerThread(DatagramSocket socket, DatagramPacket packet) throws SocketException {
+        WorkerThread(DatagramSocket socket, DatagramPacket packet) {
             mSocket = socket;
             // Get address and port to send reply to
             mReplyAddr = packet.getAddress();
             mReplyPort = packet.getPort();
-
-            // Start serving the client
-            start();
         }
 
         /**
@@ -261,84 +240,81 @@ public class ServerUDP implements Runnable, Server {
             Log.d(TAG, "Stopped worker thread for client " + mReplyAddr + ":" + mReplyPort);
         }
 
-        /**
-         * Parses the initial GET packet and retrieves necessary info in order to respond correctly
-         * NOTE: not currently needed as absolute movement is not supported
-         *
-         * @param initPacket initial packet that the client sends to the server to get position updates
-         * @return boolean true if all parsing completed successfully, otherwise false
-         */
-        private boolean parseInitialRequest(DatagramPacket initPacket) {
-            String data = new String(initPacket.getData());
-            // Trim null bytes off end
-            data = data.substring(0, data.indexOf('\0'));
-
-            Log.d(TAG, "Received request data: " + data);
-
-            if (data.startsWith(mMouseActivity.getString(R.string.protocol_opening_request))) {
-                int start = data.indexOf(' ') + 1;
-                int end = data.indexOf('\n', start);
-                String[] monitorRes = data.substring(start, end).split("x");
-                if (monitorRes.length == 2) {
-                    mPCWidth = Integer.valueOf(monitorRes[0]);
-                    mPCHeight = Integer.valueOf(monitorRes[1]);
-                    // Log.d(TAG, "Client's monitor resolution is " + mPCWidth + "x" + mPCHeight);
-
-                    // Calculate ratios between server screen (phone) and client screen (pc)
-                    mRatioWidth = (float) mPCWidth / mPhoneWidth;
-                    mRatioHeight = (float) mPCHeight / mPhoneHeight;
-
-                    Log.d(TAG, "RatioWidth: " + mRatioWidth + ", RatioHeight: " + mRatioHeight);
-                }
-            } else {
-                Log.e(TAG, "Failed to get client's resolution!");
-                return false;
-            }
-            return true;
-        }
+//        /**
+//         * Parses the initial GET packet and retrieves necessary info in order to respond correctly
+//         * NOTE: not currently needed as absolute movement is not supported
+//         *
+//         * @param initPacket initial packet that the client sends to the server to get position updates
+//         * @return boolean true if all parsing completed successfully, otherwise false
+//         */
+//        private boolean parseInitialRequest(DatagramPacket initPacket) {
+//            String data = new String(initPacket.getData());
+//            // Trim null bytes off end
+//            data = data.substring(0, data.indexOf('\0'));
+//
+//            Log.d(TAG, "Received request data: " + data);
+//
+//            if (data.startsWith(mMouseActivity.getString(R.string.protocol_ack_request))) {
+//                int start = data.indexOf(' ') + 1;
+//                int end = data.indexOf('\n', start);
+//                String[] monitorRes = data.substring(start, end).split("x");
+//                if (monitorRes.length == 2) {
+//                    mPCWidth = Integer.valueOf(monitorRes[0]);
+//                    mPCHeight = Integer.valueOf(monitorRes[1]);
+//                    // Log.d(TAG, "Client's monitor resolution is " + mPCWidth + "x" + mPCHeight);
+//
+//                    // Calculate ratios between server screen (phone) and client screen (pc)
+//                    mRatioWidth = (float) mPCWidth / mPhoneWidth;
+//                    mRatioHeight = (float) mPCHeight / mPhoneHeight;
+//
+//                    Log.d(TAG, "RatioWidth: " + mRatioWidth + ", RatioHeight: " + mRatioHeight);
+//                }
+//            } else {
+//                Log.e(TAG, "Failed to get client's resolution!");
+//                return false;
+//            }
+//            return true;
+//        }
 
         /**
          * Send acknowledgement to client that you received keep alive
          *
+         * @param openAck if this ack is replying to an OPEN message
          * @throws IOException for error during socket sending
          */
-        void sendAck() throws IOException {
-            byte[] reply = (mMouseActivity.getString(R.string.protocol_opening_reply)).getBytes();
+        void sendAck(boolean openAck) throws IOException {
+            byte[] reply;
+            if (openAck)
+                reply = (mMouseActivity.getString(R.string.protocol_open_ack)).getBytes();
+            else
+                reply = (mMouseActivity.getString(R.string.protocol_heartbeat_ack)).getBytes();
             DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
+            Log.d(TAG, "Sending ACK: " + new String(reply));
             mSocket.send(replyPacket);
         }
 
         @Override
         public void run() {
             try {
-                sendAck();
+                sendAck(true);
                 while (mWorkerIsRunning) {
                     // Don't send too many updates (may require tuning)
                     Thread.sleep(mUpdateIntervalMillis);
-                    Point position;
-                    String moveType;
-                    // Using relative movement...
-                    if (mUseRelativeMovement) {
-                        position = mMouseActivity.getRelativePosition();
-                        moveType = mMouseActivity.getString(R.string.protocol_move_relative);
-                        // Skip update if no relative movement since last update
-                        if (position.equals(0, 0))
-                            continue;
-                    } else {    // Using absolute movement...
-                        position = mMouseActivity.getAbsolutePosition();
-                        moveType = mMouseActivity.getString(R.string.protocol_move_absolute);
-                        // Skip update if no movement happened since the last update
-                        if (position.equals(mLastPos)) {
-                            continue;
-                        } else
-                            mLastPos.set(position.x, position.y);
-                    }
-                    // Find scaled x and y position according to sensitivity (absolute movement deprecated for now)
+                    Point position = mMouseActivity.getRelativePosition();
+                    String moveType = mMouseActivity.getString(R.string.protocol_move_relative);
+
+                    // Skip update if no relative movement since last update
+                    if (position.equals(0, 0))
+                        continue;
+
+                    // Find scaled x and y position according to sensitivity
                     int scaledX = (int) (position.x * mSensitivity);
                     int scaledY = (int) (position.y * mSensitivity);
+
                     // Build reply packet and send out socket
                     byte[] reply = (moveType + " " + scaledX + "," + scaledY).getBytes();
-                    Log.d(TAG, "Sending update: " + moveType + " " + scaledX + "," + scaledY);
+                    Log.d(TAG, "Sending update: " + new String(reply));
+
                     DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
                     mSocket.send(replyPacket);
                 }

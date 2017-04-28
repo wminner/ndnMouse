@@ -13,7 +13,7 @@ import hashlib
 
 def main(argv):
 	LOG_FILENAME = "log_udp.txt"
-	logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
+	logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO)
 	
 	default_address = '149.142.48.182'
 	default_port = 10888
@@ -35,7 +35,7 @@ def main(argv):
 		server.run()
 	except KeyboardInterrupt:
 		print("\nExiting...")
-		logging.debug("\nExiting...")
+		logging.info("\nExiting...")
 	finally:
 		server.shutdown()
 
@@ -50,12 +50,14 @@ class ndnMouseClientUDP():
 	pyautogui.FAILSAFE = False
 	pyautogui.PAUSE = 0
 
-	packet_bytes = 32
+	packet_bytes = 48
+	max_refresh_attempts = 3
 	
 
 	def __init__(self, addr, port):
 		self.server_address = (addr, port)
 		self.bind_address = ('', port)
+		self.refresh_attempts = 0
 
 
 	# Establish connection with server
@@ -63,15 +65,15 @@ class ndnMouseClientUDP():
 		got_timeout = True
 		while got_timeout:
 			message = b"OPEN"
-			logging.debug(b"Sending message: " + message)
+			logging.info(b"Sending message: " + message)
 			try:
 				self.sock.sendto(message, self.server_address)
 				data, server = self.sock.recvfrom(self.packet_bytes)
-				if data.decode().startswith("OPEN-ACK"):
+				if data.startswith(b"OPEN-ACK"):
 					got_timeout = False
-					logging.debug("Connected to server {0}:{1}.".format(*server))
-				else:
-					time.sleep(1)
+					# Reset refresh attempts (so we go back to heartbeat)
+					self.refresh_attempts = 0
+					logging.info("Connected to server {0}:{1}.".format(*server))
 
 			except socket.timeout:
 				continue
@@ -82,18 +84,21 @@ class ndnMouseClientUDP():
 		got_timeout = True
 		while got_timeout:
 			message = b"HEART"
-			logging.debug("Sending message: {0}".format(message))
+			logging.info("Sending message: {0}".format(message))
 			try:
 				self.sock.sendto(message, self.server_address)
 				data, server = self.sock.recvfrom(self.packet_bytes)
-				if data.decode().startswith("BEAT"):
+				if data.startswith(b"BEAT"):
 					got_timeout = False
-					logging.debug("Connected to server {0}:{1}.".format(*server))
-				else:
-					time.sleep(1)
+					# Reset refresh attempts
+					self.refresh_attempts = 0
+					logging.info("Connected to server {0}:{1}.".format(*server))
 
 			except socket.timeout:
-				continue
+				# Keep track of refresh timeouts and try again
+				self.refresh_attempts += 1
+				if self.refresh_attempts >= self.max_refresh_attempts:
+					return
 
 
 	# Run the server
@@ -104,8 +109,8 @@ class ndnMouseClientUDP():
 
 		print("Use ctrl+c quit at anytime....")
 		print("Listening to {0}, port {1}.".format(*self.server_address))
-		logging.debug("Use ctrl+c quit at anytime....")
-		logging.debug("Listening to {0}, port {1}.".format(*self.server_address))
+		logging.info("Use ctrl+c quit at anytime....")
+		logging.info("Listening to {0}, port {1}.".format(*self.server_address))
 
 		self._openConnection()
 				
@@ -114,7 +119,10 @@ class ndnMouseClientUDP():
 			try:
 				data, server = self.sock.recvfrom(self.packet_bytes)
 			except socket.timeout:
-				self._refreshConnection()
+				if self.refresh_attempts < self.max_refresh_attempts:
+					self._refreshConnection()
+				else:
+					self._openConnection()
 				continue
 
 			msg = data.decode().rstrip()
@@ -122,19 +130,19 @@ class ndnMouseClientUDP():
 			# Handle different commands
 			if msg.startswith("REL") or msg.startswith("ABS"):
 				self._handleMove(msg, self.transition_time)
-			elif msg.startswith("CLICK"):
+			elif msg.startswith("CLK"):
 				_, click, updown = msg.split('_')
 				self._handleClick(click, updown)
 			else:	# Got acknowledgement message from server, do nothing
 				continue
 
-			logging.debug("Received from server {0}:{1}: {2}".format(server[0], server[1], data))
+			logging.info("Received from server {0}:{1}: {2}".format(server[0], server[1], data))
 
 
 	# Shutdown the server
 	def shutdown(self):
 		message = b"CLOSE"
-		logging.debug("Sending message: {0}".format(message))
+		logging.info(b"Sending message: " + message)
 		self.sock.sendto(message, self.server_address)
 		self.sock.close()
 
@@ -152,7 +160,7 @@ class ndnMouseClientUDP():
 		elif updown == "F":	# FULL
 			pyautogui.click(button=click)
 		else:
-			logging.debug("Invalid click type: {0} {1}".format(click, updown))
+			logging.info("Invalid click type: {0} {1}".format(click, updown))
 
 
 	# Handle movement commands
@@ -176,12 +184,12 @@ class ndnMouseClientUDP():
 ################################################################################
 
 # Packet description
-#                     1                   2                   3
-# 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2
-# -----------------------------------------------------------------
-# |              IV               |  Seq  |        Message        |
-# -----------------------------------------------------------------
-# <~~~~~~~~~ plaintext ~~~~~~~~~~~><~~~~~~~~ ciphertext ~~~~~~~~~~>
+#                     1                   2                   3                   4
+# 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8
+# -------------------------------------------------------------------------------------------------
+# |              IV               |  Seq  |         Message (may be padded with null bytes)       |
+# -------------------------------------------------------------------------------------------------
+# <~~~~~~~~~ plaintext ~~~~~~~~~~~><~~~~~~~~~~~~~~~~~~~~~ ciphertext ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>
 
 class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 	
@@ -190,12 +198,13 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 	iv_bytes = 16
 	key_bytes = 16
 	aes_block_size = 16
+	accepted_heartbeat_responses = [b'BEA', b'REL', b'CLK']
 
 
 	def __init__(self, addr, port, password):
-		self.server_address = (addr, port)
-		self.bind_address = ('', port)
+		super().__init__(addr, port)
 		self.key = self.getKeyFromPassword(password)
+		self.rndfile = Random.new()
 
 
 	# Establish connection with server
@@ -209,9 +218,10 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 			message = intToBytes(self.seq_num) + b"OPEN"
 			logging.debug(b"Sending message: " + iv + message)
 			encrypted_message = self.encryptData(message, iv)
+			encrypted_message_with_iv = iv + encrypted_message
 			try:
 				# Send and receive data
-				self.sock.sendto(encrypted_message, self.server_address)
+				self.sock.sendto(encrypted_message_with_iv, self.server_address)
 				data, server = self.sock.recvfrom(self.packet_bytes)
 
 				# Extract cleartext IV and ciphertext response, then decrypt it
@@ -220,15 +230,14 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 				decrypted = self.decryptData(encrypted, server_iv)
 
 				# If decrypted response is what we expect...
-				if decrypted.startswith(intToBytes(self.seq_num+1) + b"OPEN-ACK"):
+				if decrypted.startswith(b"\x00\x00\x00\x01OPEN-ACK"):
 					# Incrememt the seq num (for this case it will always be 1)
 					self.seq_num = 1
+					# Reset refresh attempts (so we go back to heartbeat)
+					self.refresh_attempts = 0
 					# Break out of the loop
 					got_timeout = False
-					logging.debug("Connected to server {0}:{1}.".format(*server))
-				else:
-					# If wrong response, then sleep and try again
-					time.sleep(1)
+					logging.info("Connected to server {0}:{1}.".format(*server))
 
 			except socket.timeout:
 				# No response, try again
@@ -247,9 +256,10 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 			message = intToBytes(self.seq_num) + b"HEART"
 			logging.debug(b"Sending message: " + iv + message)
 			encrypted_message = self.encryptData(message, iv)
+			encrypted_message_with_iv = iv + encrypted_message
 			try:
 				# Send and receive data
-				self.sock.sendto(encrypted_message, self.server_address)
+				self.sock.sendto(encrypted_message_with_iv, self.server_address)
 				data, server = self.sock.recvfrom(self.packet_bytes)
 
 				# Extract cleartext IV and ciphertext response, then decrypt it
@@ -257,21 +267,24 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 				encrypted = data[self.iv_bytes:]
 				decrypted = self.decryptData(encrypted, server_iv)
 
-				server_seq_num = intFromBytes(decrypted[:4])
+				server_seq_num = intFromBytes(decrypted[:self.seq_num_bytes])
+				# logging.info("server seq num = {0}, client seq num = {1}".format(server_seq_num, self.seq_num))
 				# If decrypted response has a valid seq num, and has the correct response...
-				if server_seq_num > self.seq_num and decrypted[4:].startswith(b"BEAT"):
+				if server_seq_num > self.seq_num and decrypted[self.seq_num_bytes:].startswith(b"BEAT"):
 					# Update our seq num to synchronize with server
 					self.seq_num = server_seq_num
+					# Reset refresh attempts
+					self.refresh_attempts = 0
 					# Break out of the loop
 					got_timeout = False
-					logging.debug("Connected to server {0}:{1}.".format(*server))
-				else:
-					# If wrong response, then sleep and try again
-					time.sleep(1)
+					logging.info("Connected to server {0}:{1}.".format(*server))
 
 			except socket.timeout:
-				# No response, try again
-				continue
+				logging.info("Refresh Timeout!")
+				# Keep track of refresh timeouts and try again
+				self.refresh_attempts += 1
+				if self.refresh_attempts >= self.max_refresh_attempts:
+					return
 
 
 	# Run the server
@@ -282,8 +295,8 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 
 		print("Use ctrl+c quit at anytime....")
 		print("Listening to {0}, port {1}.".format(*self.server_address))
-		logging.debug("Use ctrl+c quit at anytime....")
-		logging.debug("Listening to {0}, port {1}.".format(*self.server_address))
+		logging.info("Use ctrl+c quit at anytime....")
+		logging.info("Listening to {0}, port {1}.".format(*self.server_address))
 
 		self._openConnection()
 				
@@ -292,23 +305,27 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 			try:
 				data, server = self.sock.recvfrom(self.packet_bytes)
 			except socket.timeout:
-				self._refreshConnection()
+				if self.refresh_attempts < self.max_refresh_attempts:
+					self._refreshConnection()
+				else:
+					self._openConnection()
 				continue
 
 			# Extract cleartext IV and ciphertext message, then decrypt it
 			server_iv = data[:self.iv_bytes]
 			encrypted = data[self.iv_bytes:]
-			decrypted = self.decryptData(encrypted, iv)
+			decrypted = self.decryptData(encrypted, server_iv)
 
-			server_seq_num = intFromBytes(decrypted[:4])
+			server_seq_num = intFromBytes(decrypted[:self.seq_num_bytes])
 			# If decrypted message has a valid seq num...
-			if server_seq_num > self.server_seq_num:
-				msg = decrypted[4:].decode().rstrip()
+			if server_seq_num > self.seq_num:
+				self.seq_num = server_seq_num
+				msg = decrypted[self.seq_num_bytes:].decode().rstrip()
 			
 			# Handle different commands
 			if msg.startswith("REL") or msg.startswith("ABS"):
 				self._handleMove(msg, self.transition_time)
-			elif msg.startswith("CLICK"):
+			elif msg.startswith("CLK"):
 				_, click, updown = msg.split('_')
 				self._handleClick(click, updown)
 			else:	# Got acknowledgement message from server, do nothing
@@ -323,47 +340,46 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 		iv = self.getNewIV()
 
 		message = intToBytes(self.seq_num) + b"CLOSE"
-		logging.debug("Sending message: {0}".format(message))
+		logging.debug(b"Sending message: " + message)
 		encrypted_message = self.encryptData(message, iv)
+		encrypted_message_with_iv = iv + encrypted_message
 
-		self.sock.sendto(encrypted_message, self.server_address)
+		self.sock.sendto(encrypted_message_with_iv, self.server_address)
 		self.sock.close()
 
 	# Encrypt data
 	def encryptData(self, message, iv):
+		logging.info(b"Data SENT: " + message)
 		message = self.PKCS5Pad(message)
-		logging.debug(b"Encrypting data BEFORE: " + message)
 		cipher = AES.new(self.key, AES.MODE_CBC, iv)
 		encrypted = cipher.encrypt(message)
-		logging.debug(b"Encrypting data AFTER: " + encrypted)
+		logging.debug(b"Encrypting data SENT: " + encrypted)
 		return encrypted
 
 	# Decrypt data
 	def decryptData(self, encrypted, iv):
-		logging.debug(b"Decrypting data BEFORE: " + encrypted)
+		logging.debug(b"Encrypted data RECEIVED: " + encrypted)
 		cipher = AES.new(self.key, AES.MODE_CBC, iv)
 		decrypted = self.PKCS5Unpad(cipher.decrypt(encrypted))
-		logging.debug(b"Decrypting data AFTER: " + decrypted)
+		logging.info(b"Data RECEIVED: " + decrypted)
 		return decrypted
 
 	# Get a new random initialization vector (IV)
-	def getNewIV(self):
-		if not self.rndfile:
-			self.rndfile = Random.new()
+	def getNewIV(self):		
 		return self.rndfile.read(self.iv_bytes)
 
 	# Hash password into key
 	def getKeyFromPassword(self, password):
 		sha = hashlib.sha256()
 		sha.update(password.encode())
-		logging.debug(b"Password \"" + password.encode() + b"\" becomes " + sha.digest()[:self.key_bytes])
 		# Only take first 128 bits (16 B)
 		return sha.digest()[:self.key_bytes]
 
-	# PKCS5Padding helpers
+	# PKCS5Padding padder
 	def PKCS5Pad(self, s):
 		return s + (self.aes_block_size - len(s) % self.aes_block_size) * chr(self.aes_block_size - len(s) % self.aes_block_size).encode()
 
+	# PKCS5Padding unpadder
 	def PKCS5Unpad(self, s):
 		return s[0:-ord(chr(s[-1]))]
 

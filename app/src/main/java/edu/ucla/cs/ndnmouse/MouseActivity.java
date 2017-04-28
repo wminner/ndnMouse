@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.spec.KeySpec;
 import java.util.Arrays;
 
 import javax.crypto.spec.SecretKeySpec;
@@ -27,6 +26,7 @@ import javax.crypto.spec.SecretKeySpec;
 import edu.ucla.cs.ndnmouse.utilities.Server;
 import edu.ucla.cs.ndnmouse.utilities.ServerNDN;
 import edu.ucla.cs.ndnmouse.utilities.ServerUDP;
+import edu.ucla.cs.ndnmouse.utilities.ServerUDPSecure;
 
 public class MouseActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
 
@@ -44,7 +44,6 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     private Point mLastRelPos;                                  // Used to calculate relative position differences
     private boolean mBufferAbsPos = true;                       // Used to decide when to buffer an absolute position (to get an accurate relative movement)
     private boolean mTouchDown = false;                         // User is currently touching down on touchpad (has not lifted yet)
-    private boolean mUseRelativeMovement = true;                // Always true (as absolute movement no longer support)
     private float mSensitivity;                                 // Sensitivity multiplier for mouse movement control
     private static final int mMinMovementPixelThreshold = 5;    // Min change in pixels to count as a movement update (otherwise same position)
 
@@ -92,7 +91,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                         mServer = new ServerNDN(MouseActivity.this, mSensitivity, keySpec);
                         Log.d(TAG, "Creating NDN server...");
                     } else {
-                        mServer = new ServerUDP(MouseActivity.this, mPort, mSensitivity, keySpec);
+                        if (mPassword.isEmpty())
+                            mServer = new ServerUDP(MouseActivity.this, mPort, mSensitivity);
+                        else
+                            mServer = new ServerUDPSecure(MouseActivity.this, mPort, mSensitivity, keySpec);
                         Log.d(TAG, "Creating UDP server...");
                     }
                     mServer.start();
@@ -143,11 +145,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-        if (key.equals(getString(R.string.pref_movement_key))) {
-            String movement = sharedPreferences.getString(key, getResources().getString(R.string.pref_movement_default));
-            mUseRelativeMovement = !movement.equals(getString(R.string.pref_move_abs_value));
-            mServer.UpdateSettings(R.string.pref_movement_key, mUseRelativeMovement);
-        } else if (key.equals(getString(R.string.pref_tap_to_left_click_key))) {
+        if (key.equals(getString(R.string.pref_tap_to_left_click_key))) {
             // No need to update server setting because clicks are detected and executed by MouseActivity
             mTapToLeftClick = sharedPreferences.getBoolean(key, getResources().getBoolean(R.bool.pref_tap_to_left_click_default));
         } else if (key.equals(getString(R.string.pref_sensitivity_key))) {
@@ -161,8 +159,6 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
      */
     private void setupSharedPreferences() {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-        String movement = sharedPreferences.getString(getString(R.string.pref_movement_key), getResources().getString(R.string.pref_movement_default));
-        mUseRelativeMovement = !movement.equals(getString(R.string.pref_move_abs_value));
         mTapToLeftClick = sharedPreferences.getBoolean(getString(R.string.pref_tap_to_left_click_key), getResources().getBoolean(R.bool.pref_tap_to_left_click_default));
         mSensitivity = Float.valueOf(sharedPreferences.getString(getString(R.string.pref_sensitivity_key), getString(R.string.pref_sensitivity_default)));
     }
@@ -178,14 +174,14 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
                     try {
-                        mServer.ExecuteClick(R.string.action_left_click_down);
+                        mServer.executeClick(R.string.action_left_click_down);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                     displayClick(getString(R.string.action_left_click_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
                     try {
-                        mServer.ExecuteClick(R.string.action_left_click_up);
+                        mServer.executeClick(R.string.action_left_click_up);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -205,14 +201,14 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
                     try {
-                        mServer.ExecuteClick(R.string.action_right_click_down);
+                        mServer.executeClick(R.string.action_right_click_down);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                     displayClick(getString(R.string.action_right_click_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
                     try {
-                        mServer.ExecuteClick(R.string.action_right_click_up);
+                        mServer.executeClick(R.string.action_right_click_up);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -250,7 +246,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                             long now = System.currentTimeMillis();
                             if (now - mTouchDownTime <= mTapClickMillisThreshold) {
                                 try {
-                                    mServer.ExecuteClick(R.string.action_left_click_full);
+                                    mServer.executeClick(R.string.action_left_click_full);
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
@@ -331,9 +327,18 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         return relativeDiff;
     }
 
+    /**
+     * Creates a SecretKeySpec from the user's password
+     *
+     * @param password from the user
+     * @return 128 bit (16 B) secret key
+     * @throws UnsupportedEncodingException for message digest's encoding
+     * @throws NoSuchAlgorithmException for secret key algorithm
+     */
     private SecretKeySpec makeKeyFromPassword(String password) throws UnsupportedEncodingException, NoSuchAlgorithmException {
         byte[] key = password.getBytes("UTF-8");
-        MessageDigest md5 = MessageDigest.getInstance("MD5");
-        return new SecretKeySpec(md5.digest(key), "AES");
+        MessageDigest sha = MessageDigest.getInstance("SHA-256");
+        // Copy only 128 bits (16 B) from digest to use for secret key
+        return new SecretKeySpec(Arrays.copyOf(sha.digest(key), 16), "AES");
     }
 }

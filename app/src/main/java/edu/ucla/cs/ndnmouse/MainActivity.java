@@ -10,6 +10,7 @@ import android.support.v7.preference.PreferenceManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.RadioButton;
 import android.widget.TextView;
@@ -21,7 +22,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = MainActivity.class.getSimpleName();
 
-    private static String mServerPassword = "1234"; // Temp password for testing
+    private EditText mPasswordEditText;
     private TextView mPortTextView;
     private TextView mAddressTextView;
     private boolean mUseNDN = true;                 // Setting to use NDN as the server protocol (otherwise UDP)
@@ -39,6 +40,8 @@ public class MainActivity extends AppCompatActivity {
 
         mPortTextView = (TextView) findViewById(R.id.et_port);
         mPortTextView.setText(mUseNDN ? getString(R.string.ndn_port) : getString(R.string.udp_port));
+
+        mPasswordEditText = (EditText) findViewById(R.id.et_password);
     }
 
     @Override
@@ -63,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 int port = getPort();
+                String password = getPassword();
                 // If we got bad port, then make a Toast alerting user and give up on intent
                 if (port == -1) {
                     Toast.makeText(MainActivity.this, "Invalid port: please enter a port number between 1 and 65535.", Toast.LENGTH_LONG).show();
@@ -71,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
                     Class destinationClass = MouseActivity.class;
                     Intent intentToStartMouseActivity = new Intent(context, destinationClass);
                     intentToStartMouseActivity.putExtra(getString(R.string.intent_extra_port), port);
-                    intentToStartMouseActivity.putExtra(getString(R.string.intent_extra_password), mServerPassword);
+                    intentToStartMouseActivity.putExtra(getString(R.string.intent_extra_password), password);
                     intentToStartMouseActivity.putExtra(getString(R.string.intent_extra_protocol), mUseNDN);
                     mMonitorIPAddress = false;
                     startActivity(intentToStartMouseActivity);
@@ -89,6 +93,10 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intentToStartOptionsActivity);
             }
         });
+    }
+
+    private String getPassword() {
+        return mPasswordEditText.getText().toString();
     }
 
     /**

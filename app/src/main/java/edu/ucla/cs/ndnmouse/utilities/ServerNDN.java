@@ -39,7 +39,7 @@ public class ServerNDN implements Runnable, Server {
     private Face mFace;                                     // Reference to the NDN face we will use to serve interests
     // private final int mPort = 6363;                      // Default NFD port
     private boolean mServerIsRunning = false;               // Controls if server thread is spinning or not
-    private boolean mUseRelativeMovement;                   // Setting to use relative movement, or absolute (deprecated)
+    private boolean mUseRelativeMovement = true;            // Setting to use relative movement, or absolute (deprecated)
     private float mSensitivity;                             // Sensitivity multiplier for relative movement
     private final static int mUpdateIntervalMillis = 50;    // Number of milliseconds to wait before sending next update. May require tuning.
     private final static double mFreshnessPeriod = 0;       // Number of milliseconds data is considered fresh. May require tuning.
@@ -266,7 +266,7 @@ public class ServerNDN implements Runnable, Server {
      * @throws IOException for socket IO error
      */
     @Override
-    public void ExecuteClick(int click) throws IOException {
+    public void executeClick(int click) throws IOException {
         if (mClickQueue.isEmpty() || click != mClickQueue.peek())
             mClickQueue.add(click);
     }

@@ -19,7 +19,7 @@ public interface Server {
      * @param click type of click (using clicks defined in strings.xml)
      * @throws IOException
      */
-    public void ExecuteClick(int click) throws IOException;
+    public void executeClick(int click) throws IOException;
 
     /**
      * This is called whenever settings are updated, so the server can change its behavior on the fly

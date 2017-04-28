@@ -105,7 +105,7 @@ class ndnMouseClientNDN():
 		clean_data = byte_string_data.decode().rstrip()
 		
 		# Check and handle click
-		if clean_data.startswith("CLICK"):
+		if clean_data.startswith("CLK"):
 			_, click, updown = clean_data.split(' ')
 			self.handleClick(click, updown)
 		# Otherwise assume move command
