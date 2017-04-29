@@ -13,11 +13,11 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 * Mouse control: movement, left click, right click, tap-to-click
 * Mouse sensitivity settings
 * UDP and NDN support
+* UDP Security: data encryption only
 
 ### Planned Features
 
 * NDN Security: data encryption and packet signature validation
-* UDP Security: data encryption only
 * Rudimentary keyboard support (for slideshow control?)
 
 ### Supported Platforms
@@ -49,6 +49,10 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 1. On your phone, start the server within ndnMouse (you can choose NDN or UDP protocol).
 1. On your PC, execute the matching-protocol Python script in the [pc_client](./pc_client) directory.
 1. Control :mouse::exclamation:
+
+## Screenshots
+
+<img src="./screenshots/screenshot1.png" width="270"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="./screenshots/screenshot2.png" width="270"/>
 
 ## License
 See [here](./LICENSE)
