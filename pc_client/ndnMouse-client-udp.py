@@ -187,7 +187,7 @@ class ndnMouseClientUDP():
 #                     1                   2                   3                   4
 # 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8
 # -------------------------------------------------------------------------------------------------
-# |              IV               |  Seq  |         Message (may be padded with null bytes)       |
+# |              IV               |  Seq  |         Message (paddig via an extended PKCS5)        |
 # -------------------------------------------------------------------------------------------------
 # <~~~~~~~~~ plaintext ~~~~~~~~~~~><~~~~~~~~~~~~~~~~~~~~~ ciphertext ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>
 
@@ -198,7 +198,6 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 	iv_bytes = 16
 	key_bytes = 16
 	aes_block_size = 16
-	accepted_heartbeat_responses = [b'BEA', b'REL', b'CLK']
 
 
 	def __init__(self, addr, port, password):
@@ -350,8 +349,8 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 	# Encrypt data
 	def encryptData(self, message, iv):
 		logging.info(b"Data SENT: " + message)
-		message = self.PKCS5Pad(message)
 		cipher = AES.new(self.key, AES.MODE_CBC, iv)
+		message = self.PKCS5Pad(message, self.packet_bytes - self.iv_bytes)
 		encrypted = cipher.encrypt(message)
 		logging.debug(b"Encrypting data SENT: " + encrypted)
 		return encrypted
@@ -375,9 +374,9 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 		# Only take first 128 bits (16 B)
 		return sha.digest()[:self.key_bytes]
 
-	# PKCS5Padding padder
-	def PKCS5Pad(self, s):
-		return s + (self.aes_block_size - len(s) % self.aes_block_size) * chr(self.aes_block_size - len(s) % self.aes_block_size).encode()
+	# PKCS5Padding padder, allows for longer than 16 byte pads by specifying maxPad
+	def PKCS5Pad(self, s, maxPad=aes_block_size):
+		return s + (maxPad - len(s) % maxPad) * chr(maxPad - len(s) % maxPad).encode()
 
 	# PKCS5Padding unpadder
 	def PKCS5Unpad(self, s):

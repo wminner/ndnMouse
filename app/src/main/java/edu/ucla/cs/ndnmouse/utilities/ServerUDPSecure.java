@@ -35,6 +35,7 @@ public class ServerUDPSecure extends ServerUDP {
     private Cipher mCipher;
     private SecureRandom mRandom;
     private final static int mIvBytes = 16;
+    private final static int mAesBlockSize = 16;
     private final static int mSeqNumBytes = 4;
 
     private HashMap<InetAddress, WorkerThreadSecure> mClientThreads;    // Holds all active worker threads that are servicing clients
@@ -58,7 +59,8 @@ public class ServerUDPSecure extends ServerUDP {
 
         // Get and init cipher algorithm
         try {
-            mCipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            // Padding is handled by my own custom PKCS5 padding function (see PKCS5Pad)
+            mCipher = Cipher.getInstance("AES/CBC/NoPadding");
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
             e.printStackTrace();
         }
@@ -70,22 +72,23 @@ public class ServerUDPSecure extends ServerUDP {
             // Create a new UDP socket
             mSocket = new DatagramSocket(mPort);
             while (mServerIsRunning) {
-                byte[] buf = new byte[48];
+                byte[] buf = new byte[mPacketBytes];
                 // Get incoming packet
                 DatagramPacket packet = new DatagramPacket(buf, buf.length);
                 mSocket.receive(packet);  // Blocks program flow
 
                 // Get data from packet
-                byte[] data = trimNullBytes(packet.getData());
-                Log.d(TAG, "Incoming data: " + Arrays.toString(data));
+                byte[] data = packet.getData();
+                // Log.d(TAG, "Incoming data: " + Arrays.toString(data));
 
                 IvParameterSpec server_iv = new IvParameterSpec(Arrays.copyOfRange(data, 0, mIvBytes));
                 byte[] encrypted = Arrays.copyOfRange(data, mIvBytes, data.length);
 
                 try {
+                    // Decrypt the data and trim null bytes
                     byte[] decrypted = decryptData(encrypted, server_iv);
 
-                    int clientSeqNum = ByteBuffer.wrap(Arrays.copyOf(decrypted, mSeqNumBytes)).getInt();
+                    int clientSeqNum = intFromBytes(Arrays.copyOf(decrypted, mSeqNumBytes));
                     String msg = new String(Arrays.copyOfRange(decrypted, mSeqNumBytes, decrypted.length));
 
                     // If new client...
@@ -154,32 +157,69 @@ public class ServerUDPSecure extends ServerUDP {
         }
     }
 
+    /**
+     * Encrypts data using user key and specified IV
+     *
+     * @param message
+     * @param iv
+     * @return
+     * @throws InvalidAlgorithmParameterException
+     * @throws InvalidKeyException
+     * @throws ShortBufferException
+     * @throws BadPaddingException
+     * @throws IllegalBlockSizeException
+     */
     private byte[] encryptData(byte[] message, IvParameterSpec iv) throws InvalidAlgorithmParameterException, InvalidKeyException, ShortBufferException, BadPaddingException, IllegalBlockSizeException {
         Log.d(TAG, "Encrypt data BEFORE: " + new String(message));
         mCipher.init(Cipher.ENCRYPT_MODE, mKey, iv);
-        byte[] encrypted = new byte[mCipher.getOutputSize(message.length)];
-        int encryptLen = mCipher.update(message, 0, message.length, encrypted, 0);
-        encryptLen += mCipher.doFinal(encrypted, encryptLen);
-//        Log.d(TAG, "Encrypt data AFTER (length " + encryptLen + "): " + Arrays.toString(encrypted));
-        return encrypted;
+//        byte[] encrypted = new byte[mCipher.getOutputSize(message.length)];
+//        int encryptLen = mCipher.update(message, 0, message.length, encrypted, 0);
+//        mCipher.doFinal(encrypted, encryptLen);
+//        // Log.d(TAG, "Encrypt data AFTER (length " + encryptLen + "): " + Arrays.toString(encrypted));
+//        return encrypted;
+        return mCipher.doFinal(PKCS5Pad(message, mPacketBytes - mIvBytes));
     }
 
+    /**
+     * Decrypts data using user key and specified IV
+     *
+     * @param encrypted
+     * @param iv
+     * @return
+     * @throws InvalidAlgorithmParameterException
+     * @throws InvalidKeyException
+     * @throws ShortBufferException
+     * @throws BadPaddingException
+     * @throws IllegalBlockSizeException
+     */
     private byte[] decryptData(byte[] encrypted, IvParameterSpec iv) throws InvalidAlgorithmParameterException, InvalidKeyException, ShortBufferException, BadPaddingException, IllegalBlockSizeException {
-//        Log.d(TAG, "Decrypt data BEFORE: " + Arrays.toString(encrypted));
+        // Log.d(TAG, "Decrypt data BEFORE: " + Arrays.toString(encrypted));
         mCipher.init(Cipher.DECRYPT_MODE, mKey, iv);
-        byte[] decrypted = new byte[mCipher.getOutputSize(encrypted.length)];
-        int decryptLen = mCipher.update(encrypted, 0, encrypted.length, decrypted, 0);
-        decryptLen += mCipher.doFinal(decrypted, decryptLen);
-        Log.d(TAG, "Decrypt data AFTER (length " + decryptLen + "): " + new String(decrypted));
-        return decrypted;
+        //byte[] decrypted = new byte[mCipher.getOutputSize(encrypted.length)];
+        //int decryptLen = mCipher.update(encrypted, 0, encrypted.length, decrypted, 0);
+        //mCipher.doFinal(decrypted, decryptLen);
+        // Log.d(TAG, "Decrypt data AFTER (length " + decryptLen + "): " + new String(decrypted));
+        //return decrypted;
+        return PKCS5Unpad(mCipher.doFinal(encrypted));
     }
 
+    /**
+     * Gets a new random IV
+     *
+     * @return random IV
+     */
     private IvParameterSpec getNewIV() {
         byte[] newIv = new byte[mIvBytes];
         mRandom.nextBytes(newIv);
         return new IvParameterSpec(newIv);
     }
 
+    /**
+     * Converts integer to 4 bytes (in order to send via network)
+     *
+     * @param x integer to convert
+     * @return byte array (size 4) of the converted integer
+     */
     @NonNull
     private byte[] intToBytes(int x) {
         ByteBuffer buf = ByteBuffer.allocate(4);
@@ -187,6 +227,12 @@ public class ServerUDPSecure extends ServerUDP {
         return buf.array();
     }
 
+    /**
+     * Converts byte array (assumed to be size 4) to integer.
+     *
+     * @param xbytes array of bytes to convert (must be size 4)
+     * @return converted integer
+     */
     private int intFromBytes(byte[] xbytes) {
         return ByteBuffer.wrap(xbytes).getInt();
     }
@@ -199,12 +245,55 @@ public class ServerUDPSecure extends ServerUDP {
         return res;
     }
 
-    private byte[] trimNullBytes(byte[] data) {
-        for (int i = data.length-1; i >= 0; i--) {
-            if (data[i] != 0)
-                return Arrays.copyOfRange(data, 0, i+1);
+//    private byte[] trimNullBytes(byte[] data) {
+//        for (int i = data.length-1; i >= 0; i--) {
+//            if (data[i] != 0)
+//                return Arrays.copyOfRange(data, 0, i+1);
+//        }
+//        return new byte[0];
+//    }
+//
+//    private byte[] padNullBytes(byte[] data, int newLen) {
+//        if (data.length >= newLen)
+//            return data;
+//        byte[] newData = Arrays.copyOf(data, newLen);
+//        for (int i = data.length; i < newLen; i++) {
+//            newData[i] = 0;
+//        }
+//        return newData;
+//    }
+//
+//    private byte[] PKCS5Pad(byte[] data) {
+//        return PKCS5Pad(data, mAesBlockSize);
+//    }
+
+    /**
+     * PKCS5 padding extended to allow for greater than 16 byte pads
+     *
+     * @param data to be padded
+     * @param maxPad the maximum number of bytes that can be padded
+     * @return resulting padded data
+     */
+    private byte[] PKCS5Pad(byte[] data, int maxPad) {
+        byte padChar = (byte) (maxPad - data.length % maxPad);
+        int newLen = data.length + padChar;
+        byte[] newData = Arrays.copyOf(data, newLen);
+        for (int i = data.length; i < newLen; i++) {
+            newData[i] = padChar;
         }
-        return new byte[0];
+        return newData;
+    }
+
+    /**
+     * PKCS5 standard unpadder
+     *
+     * @param data to be unpadded
+     * @return resulting unpadded data
+     */
+    @NonNull
+    private byte[] PKCS5Unpad(byte[] data) {
+        byte padChar = data[data.length-1];
+        return Arrays.copyOf(data, data.length - padChar);
     }
 
     /**
@@ -243,6 +332,7 @@ public class ServerUDPSecure extends ServerUDP {
             byte[] reply = prependSeqNum(msg);
             IvParameterSpec iv = getNewIV();
             try {
+                // Pad reply message with null bytes before encrypting
                 byte[] encryptedReply = encryptData(reply, iv);
                 byte[] encryptedReplyWithIv = prependIV(encryptedReply, iv);
                 DatagramPacket replyPacket = new DatagramPacket(encryptedReplyWithIv, encryptedReplyWithIv.length, mReplyAddr, mReplyPort);

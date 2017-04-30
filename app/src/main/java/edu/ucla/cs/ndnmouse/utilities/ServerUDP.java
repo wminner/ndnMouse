@@ -29,6 +29,7 @@ public class ServerUDP implements Runnable, Server {
     float mSensitivity;                             // Sensitivity multiplier for relative movement
 
     private HashMap<InetAddress, WorkerThread> mClientThreads;    // Holds all active worker threads that are servicing clients
+    final static int mPacketBytes = 48;
 
     /**
      * Constructor for server
@@ -83,7 +84,7 @@ public class ServerUDP implements Runnable, Server {
             // Create a new UDP socket
             mSocket = new DatagramSocket(mPort);
             while (mServerIsRunning) {
-                byte[] buf = new byte[64];
+                byte[] buf = new byte[mPacketBytes];
                 // Get incoming packet
                 DatagramPacket packet = new DatagramPacket(buf, buf.length);
                 mSocket.receive(packet);  // Blocks program flow
