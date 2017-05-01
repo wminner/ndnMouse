@@ -25,6 +25,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import edu.ucla.cs.ndnmouse.utilities.Server;
 import edu.ucla.cs.ndnmouse.utilities.ServerNDN;
+import edu.ucla.cs.ndnmouse.utilities.ServerNDNSecure;
 import edu.ucla.cs.ndnmouse.utilities.ServerUDP;
 import edu.ucla.cs.ndnmouse.utilities.ServerUDPSecure;
 
@@ -88,7 +89,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
                     // Create and start mServer
                     if (mUseNDN) {
-                        mServer = new ServerNDN(MouseActivity.this, mSensitivity, keySpec);
+                        if (mPassword.isEmpty())
+                            mServer = new ServerNDN(MouseActivity.this, mSensitivity);
+                        else
+                            mServer = new ServerNDNSecure(MouseActivity.this, mSensitivity, keySpec);
                         Log.d(TAG, "Creating NDN server...");
                     } else {
                         if (mPassword.isEmpty())

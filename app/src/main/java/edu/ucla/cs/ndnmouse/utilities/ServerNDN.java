@@ -34,48 +34,24 @@ import edu.ucla.cs.ndnmouse.R;
 public class ServerNDN implements Runnable, Server {
 
     private static final String TAG = ServerNDN.class.getSimpleName();
-    private MouseActivity mMouseActivity;                   // Reference to calling activity
+    MouseActivity mMouseActivity;                   // Reference to calling activity
 
-    private Face mFace;                                     // Reference to the NDN face we will use to serve interests
+    Face mFace;                                             // Reference to the NDN face we will use to serve interests
     // private final int mPort = 6363;                      // Default NFD port
     private boolean mServerIsRunning = false;               // Controls if server thread is spinning or not
-    private boolean mUseRelativeMovement = true;            // Setting to use relative movement, or absolute (deprecated)
-    private float mSensitivity;                             // Sensitivity multiplier for relative movement
+    float mSensitivity;                                     // Sensitivity multiplier for relative movement
     private final static int mUpdateIntervalMillis = 50;    // Number of milliseconds to wait before sending next update. May require tuning.
-    private final static double mFreshnessPeriod = 0;       // Number of milliseconds data is considered fresh. May require tuning.
+    final static double mFreshnessPeriod = 0;               // Number of milliseconds data is considered fresh. May require tuning.
 
-    // Variables for supporting absolute movement (deprecated)
-    private int mPhoneWidth;            // Pixel width of the phone's touchpad
-    private int mPhoneHeight;           // Pixel height of the phone's touchpad
-    private int mPCWidth = 2560;        // Pixel width of the client's screen (temp test value)
-    private int mPCHeight = 1335;       // Pixel height of the client's screen (temp test value)
-    private float mRatioWidth;          // Ratio of client's screen width to phone's touchpad width
-    private float mRatioHeight;         // Ratio of client's screen height to phone's touchpad height
-    // private static long mSeqNum;     // Using seq numbers seem to increase the latency a lot... (deprecated)
+    private Handler mPrefixErrorHandler;                            // Handles work for the UI thread (toast) when there is an error setting up prefixes
+    HashMap<String, Long> mRegisteredPrefixIds = new HashMap<String, Long>();  // Keeps track of all registered prefix IDs
+    boolean mPrefixRegisterError = false;                           // Tracks error during prefix registration
+    LinkedList<Integer> mClickQueue = new LinkedList<>();           // Holds a queue of all incoming clicks that need to be sent out to client
+    private KeyChain mKeyChain;                                     // Keychain reference (server identity)
 
-    private Point mLastPos = new Point(0, 0);   // Last position sent out (to save on processing if no movement detected)
-    private Handler mPrefixErrorHandler;        // Handles work for the UI thread (toast) when there is an error setting up prefixes
-    private HashMap<String, Long> mRegisteredPrefixIds = new HashMap<String, Long>();   // Keeps track of all registered prefix IDs
-    private boolean mPrefixRegisterError = false;                                       // Tracks error during prefix registration
-    private LinkedList<Integer> mClickQueue = new LinkedList<Integer>();                // Holds a queue of all incoming clicks that need to be sent out to client
-    private KeyChain mKeyChain;                                                         // Keychain reference (server identity)
-
-    // Password variables
-    SecretKeySpec mKey;
-
-    public ServerNDN(MouseActivity activity, float sensitivity, SecretKeySpec key) {
+    public ServerNDN(MouseActivity activity, float sensitivity) {
         mMouseActivity = activity;
-//        mPhoneWidth = width;
-//        mPhoneHeight = height;
-//        mUseRelativeMovement = useRelativeMovement;
         mSensitivity = sensitivity;
-        mKey = key;
-
-        // Calculate ratios between server screen (phone) and client screen (pc)
-        mRatioWidth = (float) mPCWidth / mPhoneWidth;
-        mRatioHeight = (float) mPCHeight / mPhoneHeight;
-
-        // mSeqNum = Math.abs(new Random().nextLong());
 
         // Makes a toast to alert user to restart NFD
         mPrefixErrorHandler = new Handler(Looper.getMainLooper()) {
@@ -162,36 +138,24 @@ public class ServerNDN implements Runnable, Server {
      * @throws IOException for putting data at Face
      * @throws SecurityException for Face registration
      */
-    private void registerPrefixes() throws IOException, SecurityException {
+    void registerPrefixes() throws IOException, SecurityException {
         // Prefix for movement updates (synchronous)
         Name prefix_move = new Name(mMouseActivity.getString(R.string.ndn_prefix_mouse_move));
         long prefixId = mFace.registerPrefix(prefix_move,
                 new OnInterestCallback() {
                     @Override
                     public void onInterest(Name prefix, Interest interest, Face face, long interestFilterId, InterestFilter filter) {
-                        Point position;
-                        String moveType;
 
                         // Log.d(TAG, "Got interest: " + interest.getName());
                         Data replyData = new Data(interest.getName());
                         replyData.getMetaInfo().setFreshnessPeriod(mFreshnessPeriod);
+                        Point position = mMouseActivity.getRelativePosition();
+                        String moveType = mMouseActivity.getString(R.string.protocol_move_relative);
 
-                        // Using relative movement...
-                        if (mUseRelativeMovement) {
-                            position = mMouseActivity.getRelativePosition();
-                            moveType = mMouseActivity.getString(R.string.protocol_move_relative);
-                            // Skip update if no relative movement since last update
-                            if (position.equals(0, 0))
-                                return;
-                        } else {    // Using absolute movement...
-                            position = mMouseActivity.getAbsolutePosition();
-                            moveType = mMouseActivity.getString(R.string.protocol_move_absolute);
-                            // Skip update if no movement happened since the last update
-                            if (position.equals(mLastPos)) {
-                                return;
-                            } else
-                                mLastPos.set(position.x, position.y);
-                        }
+                        // Skip update if no relative movement since last update
+                        if (position.equals(0, 0))
+                            return;
+
                         // Find scaled x and y position according to sensitivity (absolute movement deprecated for now)
                         int scaledX = (int) (position.x * mSensitivity);
                         int scaledY = (int) (position.y * mSensitivity);
@@ -265,10 +229,9 @@ public class ServerNDN implements Runnable, Server {
      * @param click identifier for the type of click
      * @throws IOException for socket IO error
      */
-    @Override
     public void executeClick(int click) throws IOException {
-        if (mClickQueue.isEmpty() || click != mClickQueue.peek())
-            mClickQueue.add(click);
+//        if (mClickQueue.isEmpty() || click != mClickQueue.peek())
+        mClickQueue.add(click);
     }
 
     /**
@@ -279,9 +242,6 @@ public class ServerNDN implements Runnable, Server {
      */
     public <T> void UpdateSettings(int key, T value) {
         switch (key) {
-            case R.string.pref_movement_key:
-                mUseRelativeMovement = (Boolean) value;
-                break;
             case R.string.pref_sensitivity_key:
                 mSensitivity = (Float) value;
                 break;

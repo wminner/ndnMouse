@@ -106,7 +106,7 @@ class ndnMouseClientNDN():
 		
 		# Check and handle click
 		if clean_data.startswith("CLK"):
-			_, click, updown = clean_data.split(' ')
+			_, click, updown = clean_data.split('_')
 			self.handleClick(click, updown)
 		# Otherwise assume move command
 		else:
@@ -129,11 +129,11 @@ class ndnMouseClientNDN():
 
 	# Handle click commands
 	def handleClick(self, click, updown):
-		if updown == "up":
+		if updown == "U":	# Up
 			pyautogui.mouseUp(button=click)
-		elif updown == "down":
+		elif updown == "D":	# Down
 			pyautogui.mouseDown(button=click)
-		elif updown == "full":
+		elif updown == "F":	# Full
 			pyautogui.click(button=click)
 		else:
 			logging.debug("Invalid click type: {0} {1}".format(click, updown))

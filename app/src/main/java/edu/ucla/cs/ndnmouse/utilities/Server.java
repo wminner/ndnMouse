@@ -14,6 +14,11 @@ public interface Server {
     public void stop();
 
     /**
+     * Main loop of server after calling thread.start()
+     */
+    public void run();
+
+    /**
      * Tells server to send a mouse click command
      *
      * @param click type of click (using clicks defined in strings.xml)

@@ -1,8 +1,6 @@
-# ndnMouse
+<img src="./app/src/main/res/mipmap-xxxhdpi/title.png" width="400" />
 
-![Icon](./app/src/main/res/mipmap-xxxhdpi/ic_launcher.png)
-
-## Documentation
+# Documentation
 
 ### Overview
 
@@ -30,7 +28,7 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 * OSX
 * Windows (no NFD, so UDP support only)
 
-## How to Use
+# How to Use
 
 ### Dependencies
 * Python3 (PC)
@@ -50,9 +48,9 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 1. On your PC, execute the matching-protocol Python script in the [pc_client](./pc_client) directory.
 1. Control :mouse::exclamation:
 
-## Screenshots
+# Screenshots
 
 <img src="./screenshots/screenshot1.png" width="270"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="./screenshots/screenshot2.png" width="270"/>
 
-## License
+# License
 See [here](./LICENSE)
