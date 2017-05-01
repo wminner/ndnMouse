@@ -1,18 +1,32 @@
 package edu.ucla.cs.ndnmouse.helpers;
 
 import android.support.annotation.NonNull;
+import android.util.Log;
 
 import java.nio.ByteBuffer;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.SecureRandom;
 import java.util.Arrays;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.ShortBufferException;
 import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * Helpers to format/process data sent and received by network
  */
 public class NetworkHelpers {
 
-    private final static int mAesBlockSize = 16;
+    private static final String TAG = NetworkHelpers.class.getSimpleName();
+
+    private static final int mPacketBytes = 48;
+    private static final int mAesBlockSize = 16;
+    private static final int mIvBytes = 16;
+    private static SecureRandom mRandom;
 
     /**
      * Converts integer to 4 byte big endian (in order to send via network)
@@ -37,12 +51,34 @@ public class NetworkHelpers {
         return ByteBuffer.wrap(xbytes).getInt();
     }
 
+    /**
+     * Prepend IV to the data bytes
+     *
+     * @param data
+     * @param iv
+     * @return
+     */
     public static byte[] prependIV(byte[] data, IvParameterSpec iv) {
         byte[] ivBytes = iv.getIV();
         byte[] res = new byte[data.length + ivBytes.length];
         System.arraycopy(ivBytes, 0, res, 0, ivBytes.length);
         System.arraycopy(data, 0, res, ivBytes.length, data.length);
         return res;
+    }
+
+    /**
+     * Prevend seq num to message bytes
+     *
+     * @param msg
+     * @return
+     */
+    public static byte[] prependSeqNum(byte[] msg, int seqNum) {
+        // Convert seqNum to bytes and prepend it to msg
+        byte[] seqNumBytes = NetworkHelpers.intToBytes(seqNum);
+        byte[] reply = new byte[seqNumBytes.length + msg.length];
+        System.arraycopy(seqNumBytes, 0, reply, 0, seqNumBytes.length);
+        System.arraycopy(msg, 0, reply, seqNumBytes.length, msg.length);
+        return reply;
     }
 
     /**
@@ -88,7 +124,7 @@ public class NetworkHelpers {
      * @param newLen of the resulting padded data
      * @return padded data
      */
-    private byte[] padNullBytes(byte[] data, int newLen) {
+    public static byte[] padNullBytes(byte[] data, int newLen) {
         if (data.length >= newLen)
             return data;
         byte[] newData = Arrays.copyOf(data, newLen);
@@ -104,11 +140,62 @@ public class NetworkHelpers {
      * @param data to be trimmed
      * @return resulting trimmed data
      */
-    private byte[] trimNullBytes(byte[] data) {
+    public static byte[] trimNullBytes(byte[] data) {
         for (int i = data.length-1; i >= 0; i--) {
             if (data[i] != 0)
                 return Arrays.copyOfRange(data, 0, i+1);
         }
         return new byte[0];
+    }
+
+    /**
+     * Encrypts data using user key and specified IV
+     *
+     * @param message
+     * @param iv
+     * @return
+     * @throws InvalidAlgorithmParameterException
+     * @throws InvalidKeyException
+     * @throws ShortBufferException
+     * @throws BadPaddingException
+     * @throws IllegalBlockSizeException
+     */
+    public static byte[] encryptData(byte[] message, Cipher cipher, SecretKeySpec key, IvParameterSpec iv) throws InvalidAlgorithmParameterException, InvalidKeyException, ShortBufferException, BadPaddingException, IllegalBlockSizeException {
+        Log.d(TAG, "Encrypt data BEFORE: " + new String(message));
+        cipher.init(Cipher.ENCRYPT_MODE, key, iv);
+        // Log.d(TAG, "Encrypt data AFTER (length " + encryptLen + "): " + Arrays.toString(encrypted));
+        return cipher.doFinal(NetworkHelpers.PKCS5Pad(message, mPacketBytes - mIvBytes));
+    }
+
+    /**
+     * Decrypts data using user key and specified IV
+     *
+     * @param encrypted
+     * @param iv
+     * @return
+     * @throws InvalidAlgorithmParameterException
+     * @throws InvalidKeyException
+     * @throws ShortBufferException
+     * @throws BadPaddingException
+     * @throws IllegalBlockSizeException
+     */
+    public static byte[] decryptData(byte[] encrypted, Cipher cipher, SecretKeySpec key, IvParameterSpec iv) throws InvalidAlgorithmParameterException, InvalidKeyException, ShortBufferException, BadPaddingException, IllegalBlockSizeException {
+        // Log.d(TAG, "Decrypt data BEFORE: " + Arrays.toString(encrypted));
+        cipher.init(Cipher.DECRYPT_MODE, key, iv);
+        // Log.d(TAG, "Decrypt data AFTER (length " + decryptLen + "): " + new String(decrypted));
+        return NetworkHelpers.PKCS5Unpad(cipher.doFinal(encrypted));
+    }
+
+    /**
+     * Gets a new random IV
+     *
+     * @return random IV
+     */
+    public static IvParameterSpec getNewIV() {
+        if (null == mRandom)
+            mRandom = new SecureRandom();
+        byte[] newIv = new byte[mIvBytes];
+        mRandom.nextBytes(newIv);
+        return new IvParameterSpec(newIv);
     }
 }

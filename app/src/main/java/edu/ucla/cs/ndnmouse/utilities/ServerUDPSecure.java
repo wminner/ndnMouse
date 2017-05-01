@@ -32,9 +32,7 @@ public class ServerUDPSecure extends ServerUDP {
 
     private SecretKeySpec mKey;
     private Cipher mCipher;
-    private SecureRandom mRandom;
     private final static int mIvBytes = 16;
-    private final static int mAesBlockSize = 16;
     private final static int mSeqNumBytes = 4;
 
     private HashMap<InetAddress, WorkerThreadSecure> mClientThreads;    // Holds all active worker threads that are servicing clients
@@ -52,9 +50,6 @@ public class ServerUDPSecure extends ServerUDP {
 
         mKey = key;
         mClientThreads = new HashMap<>();
-
-        // Create CSRNG to produce IVs
-        mRandom = new SecureRandom();
 
         // Get and init cipher algorithm
         try {
@@ -85,7 +80,7 @@ public class ServerUDPSecure extends ServerUDP {
 
                 try {
                     // Decrypt the data and trim null bytes
-                    byte[] decrypted = decryptData(encrypted, server_iv);
+                    byte[] decrypted = NetworkHelpers.decryptData(encrypted, mCipher, mKey, server_iv);
 
                     int clientSeqNum = NetworkHelpers.intFromBytes(Arrays.copyOf(decrypted, mSeqNumBytes));
                     String msg = new String(Arrays.copyOfRange(decrypted, mSeqNumBytes, decrypted.length));
@@ -157,55 +152,6 @@ public class ServerUDPSecure extends ServerUDP {
     }
 
     /**
-     * Encrypts data using user key and specified IV
-     *
-     * @param message
-     * @param iv
-     * @return
-     * @throws InvalidAlgorithmParameterException
-     * @throws InvalidKeyException
-     * @throws ShortBufferException
-     * @throws BadPaddingException
-     * @throws IllegalBlockSizeException
-     */
-    private byte[] encryptData(byte[] message, IvParameterSpec iv) throws InvalidAlgorithmParameterException, InvalidKeyException, ShortBufferException, BadPaddingException, IllegalBlockSizeException {
-        Log.d(TAG, "Encrypt data BEFORE: " + new String(message));
-        mCipher.init(Cipher.ENCRYPT_MODE, mKey, iv);
-        // Log.d(TAG, "Encrypt data AFTER (length " + encryptLen + "): " + Arrays.toString(encrypted));
-        return mCipher.doFinal(NetworkHelpers.PKCS5Pad(message, mPacketBytes - mIvBytes));
-    }
-
-    /**
-     * Decrypts data using user key and specified IV
-     *
-     * @param encrypted
-     * @param iv
-     * @return
-     * @throws InvalidAlgorithmParameterException
-     * @throws InvalidKeyException
-     * @throws ShortBufferException
-     * @throws BadPaddingException
-     * @throws IllegalBlockSizeException
-     */
-    private byte[] decryptData(byte[] encrypted, IvParameterSpec iv) throws InvalidAlgorithmParameterException, InvalidKeyException, ShortBufferException, BadPaddingException, IllegalBlockSizeException {
-        // Log.d(TAG, "Decrypt data BEFORE: " + Arrays.toString(encrypted));
-        mCipher.init(Cipher.DECRYPT_MODE, mKey, iv);
-        // Log.d(TAG, "Decrypt data AFTER (length " + decryptLen + "): " + new String(decrypted));
-        return NetworkHelpers.PKCS5Unpad(mCipher.doFinal(encrypted));
-    }
-
-    /**
-     * Gets a new random IV
-     *
-     * @return random IV
-     */
-    private IvParameterSpec getNewIV() {
-        byte[] newIv = new byte[mIvBytes];
-        mRandom.nextBytes(newIv);
-        return new IvParameterSpec(newIv);
-    }
-
-    /**
      * Server parent thread spins off worker threads to do the actual transmissions
      */
     private class WorkerThreadSecure extends WorkerThread {
@@ -238,11 +184,11 @@ public class ServerUDPSecure extends ServerUDP {
                 msg = (mMouseActivity.getString(R.string.protocol_heartbeat_ack)).getBytes();
 
             // Add seq num, encrypt, and prepend IV
-            byte[] reply = prependSeqNum(msg);
-            IvParameterSpec iv = getNewIV();
+            byte[] reply = NetworkHelpers.prependSeqNum(msg, ++mSeqNum);
+            IvParameterSpec iv = NetworkHelpers.getNewIV();
             try {
                 // Pad reply message with null bytes before encrypting
-                byte[] encryptedReply = encryptData(reply, iv);
+                byte[] encryptedReply = NetworkHelpers.encryptData(reply, mCipher, mKey, iv);
                 byte[] encryptedReplyWithIv = NetworkHelpers.prependIV(encryptedReply, iv);
                 DatagramPacket replyPacket = new DatagramPacket(encryptedReplyWithIv, encryptedReplyWithIv.length, mReplyAddr, mReplyPort);
                 mSocket.send(replyPacket);
@@ -272,12 +218,12 @@ public class ServerUDPSecure extends ServerUDP {
 
                     // Build reply packet using seq num and message
                     byte[] msg = (moveType + " " + scaledX + "," + scaledY).getBytes();
-                    byte[] reply = prependSeqNum(msg);
+                    byte[] reply = NetworkHelpers.prependSeqNum(msg, ++mSeqNum);
 
                     // Encrypt reply and prepend cleartext IV
-                    IvParameterSpec iv = getNewIV();
+                    IvParameterSpec iv = NetworkHelpers.getNewIV();
                     try {
-                        byte[] encryptedReply = encryptData(reply, iv);
+                        byte[] encryptedReply = NetworkHelpers.encryptData(reply, mCipher, mKey, iv);
                         byte[] encryptedReplyWithIv = NetworkHelpers.prependIV(encryptedReply, iv);
 
                         // Send out socket
@@ -299,13 +245,13 @@ public class ServerUDPSecure extends ServerUDP {
         void executeClick(int click) throws IOException {
             // Build reply packet using seq num and message
             byte[] msg = (mMouseActivity.getString(click)).getBytes();
-            byte[] reply = prependSeqNum(msg);
+            byte[] reply = NetworkHelpers.prependSeqNum(msg, ++mSeqNum);
 
             // Encrypt reply and prepend cleartext IV
-            IvParameterSpec iv = getNewIV();
+            IvParameterSpec iv = NetworkHelpers.getNewIV();
 
             try {
-                byte[] encryptedReply = encryptData(reply, iv);
+                byte[] encryptedReply = NetworkHelpers.encryptData(reply, mCipher, mKey, iv);
                 byte[] encryptedReplyWithIv = NetworkHelpers.prependIV(encryptedReply, iv);
                 DatagramPacket replyPacket = new DatagramPacket(encryptedReplyWithIv, encryptedReplyWithIv.length, mReplyAddr, mReplyPort);
                 mSocket.send(replyPacket);
@@ -313,15 +259,6 @@ public class ServerUDPSecure extends ServerUDP {
                 e.printStackTrace();
                 Log.e(TAG, "Error encrypting mouse click!");
             }
-        }
-
-        private byte[] prependSeqNum(byte[] msg) {
-            // Increment seq num and convert to bytes
-            byte[] seqNum = NetworkHelpers.intToBytes(++mSeqNum);
-            byte[] reply = new byte[seqNum.length + msg.length];
-            System.arraycopy(seqNum, 0, reply, 0, seqNum.length);
-            System.arraycopy(msg, 0, reply, seqNum.length, msg.length);
-            return reply;
         }
 
         int getSeqNum() {
