@@ -81,8 +81,10 @@ public class NetworkHelpers {
      * @return resulting unpadded data
      */
     @NonNull
-    private static byte[] PKCS5Unpad(byte[] data) {
+    private static byte[] PKCS5Unpad(byte[] data) throws NegativeArraySizeException {
         byte padChar = data[data.length-1];
+        if (data.length - padChar <= 0)
+            throw new NegativeArraySizeException();
         return Arrays.copyOf(data, data.length - padChar);
     }
 
@@ -148,7 +150,7 @@ public class NetworkHelpers {
      * @throws BadPaddingException
      * @throws IllegalBlockSizeException
      */
-    public static byte[] decryptData(byte[] encrypted, Cipher cipher, SecretKeySpec key, IvParameterSpec iv) throws InvalidAlgorithmParameterException, InvalidKeyException, ShortBufferException, BadPaddingException, IllegalBlockSizeException {
+    public static byte[] decryptData(byte[] encrypted, Cipher cipher, SecretKeySpec key, IvParameterSpec iv) throws InvalidAlgorithmParameterException, InvalidKeyException, ShortBufferException, BadPaddingException, IllegalBlockSizeException, NegativeArraySizeException {
         // Log.d(TAG, "Decrypt data BEFORE: " + Arrays.toString(encrypted));
         cipher.init(Cipher.DECRYPT_MODE, key, iv);
         // Log.d(TAG, "Decrypt data AFTER (length " + decryptLen + "): " + new String(decrypted));

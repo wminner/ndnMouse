@@ -125,7 +125,7 @@ class ndnMouseClientUDP():
 					self._openConnection()
 				continue
 
-			msg = data.decode().rstrip()
+			msg = data.decode()
 			
 			# Handle different commands
 			if msg.startswith("REL") or msg.startswith("ABS"):
@@ -160,7 +160,7 @@ class ndnMouseClientUDP():
 		elif updown == "F":	# FULL
 			pyautogui.click(button=click)
 		else:
-			logging.info("Invalid click type: {0} {1}".format(click, updown))
+			logging.error("Invalid click type: {0} {1}".format(click, updown))
 
 
 	# Handle movement commands
@@ -202,7 +202,7 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 
 	def __init__(self, addr, port, password):
 		super().__init__(addr, port)
-		self.key = self.getKeyFromPassword(password)
+		self.key = self._getKeyFromPassword(password)
 		self.rndfile = Random.new()
 
 
@@ -211,12 +211,12 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 		got_timeout = True
 		while got_timeout:
 			self.seq_num = 0
-			iv = self.getNewIV()
+			iv = self._getNewIV()
 
 			# Create message from IV, seq num, and protocol msg
 			message = intToBytes(self.seq_num) + b"OPEN"
 			logging.debug(b"Sending message: " + iv + message)
-			encrypted_message = self.encryptData(message, iv)
+			encrypted_message = self._encryptData(message, iv)
 			encrypted_message_with_iv = iv + encrypted_message
 			try:
 				# Send and receive data
@@ -226,7 +226,7 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 				# Extract cleartext IV and ciphertext response, then decrypt it
 				server_iv = data[:self.iv_bytes]
 				encrypted = data[self.iv_bytes:]
-				decrypted = self.decryptData(encrypted, server_iv)
+				decrypted = self._decryptData(encrypted, server_iv)
 
 				# If decrypted response is what we expect...
 				if decrypted.startswith(b"\x00\x00\x00\x01OPEN-ACK"):
@@ -249,12 +249,12 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 		while got_timeout:
 			# Always increment seq num before sending any message (except opener msg)
 			self.seq_num += 1
-			iv = self.getNewIV()
+			iv = self._getNewIV()
 			
 			# Create message from IV, seq num, and protocol msg
 			message = intToBytes(self.seq_num) + b"HEART"
 			logging.debug(b"Sending message: " + iv + message)
-			encrypted_message = self.encryptData(message, iv)
+			encrypted_message = self._encryptData(message, iv)
 			encrypted_message_with_iv = iv + encrypted_message
 			try:
 				# Send and receive data
@@ -264,7 +264,7 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 				# Extract cleartext IV and ciphertext response, then decrypt it
 				server_iv = data[:self.iv_bytes]
 				encrypted = data[self.iv_bytes:]
-				decrypted = self.decryptData(encrypted, server_iv)
+				decrypted = self._decryptData(encrypted, server_iv)
 
 				server_seq_num = intFromBytes(decrypted[:self.seq_num_bytes])
 				# logging.info("server seq num = {0}, client seq num = {1}".format(server_seq_num, self.seq_num))
@@ -310,76 +310,81 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 					self._openConnection()
 				continue
 
+			logging.debug("Received from server {0}:{1}: {2}".format(server[0], server[1], data))
+
 			# Extract cleartext IV and ciphertext message, then decrypt it
 			server_iv = data[:self.iv_bytes]
 			encrypted = data[self.iv_bytes:]
-			decrypted = self.decryptData(encrypted, server_iv)
+			decrypted = self._decryptData(encrypted, server_iv)
 
 			server_seq_num = intFromBytes(decrypted[:self.seq_num_bytes])
 			# If decrypted message has a valid seq num...
 			if server_seq_num > self.seq_num:
 				self.seq_num = server_seq_num
-				msg = decrypted[self.seq_num_bytes:].decode().rstrip()
+				msg = decrypted[self.seq_num_bytes:].decode()
 			
-			# Handle different commands
-			if msg.startswith("REL") or msg.startswith("ABS"):
-				self._handleMove(msg, self.transition_time)
-			elif msg.startswith("CLK"):
-				_, click, updown = msg.split('_')
-				self._handleClick(click, updown)
-			else:	# Got acknowledgement message from server, do nothing
-				continue
-
-			logging.debug("Received from server {0}:{1}: {2}".format(server[0], server[1], data))
+				# Handle different commands
+				if msg.startswith("REL") or msg.startswith("ABS"):
+					self._handleMove(msg, self.transition_time)
+				elif msg.startswith("CLK"):
+					_, click, updown = msg.split('_')
+					self._handleClick(click, updown)
+				else:	# Got acknowledgement message from server, do nothing
+					continue
 
 
 	# Shutdown the server
 	def shutdown(self):
 		self.seq_num += 1
-		iv = self.getNewIV()
+		iv = self._getNewIV()
 
 		message = intToBytes(self.seq_num) + b"CLOSE"
 		logging.debug(b"Sending message: " + message)
-		encrypted_message = self.encryptData(message, iv)
+		encrypted_message = self._encryptData(message, iv)
 		encrypted_message_with_iv = iv + encrypted_message
 
 		self.sock.sendto(encrypted_message_with_iv, self.server_address)
 		self.sock.close()
 
+
+	############################################################################
+	# Encryption Helpers
+	############################################################################
+
 	# Encrypt data
-	def encryptData(self, message, iv):
+	def _encryptData(self, message, iv):
 		logging.info(b"Data SENT: " + message)
 		cipher = AES.new(self.key, AES.MODE_CBC, iv)
-		message = self.PKCS5Pad(message, self.packet_bytes - self.iv_bytes)
+		message = self._PKCS5Pad(message, self.packet_bytes - self.iv_bytes)
 		encrypted = cipher.encrypt(message)
 		logging.debug(b"Encrypting data SENT: " + encrypted)
 		return encrypted
 
 	# Decrypt data
-	def decryptData(self, encrypted, iv):
+	def _decryptData(self, encrypted, iv):
 		logging.debug(b"Encrypted data RECEIVED: " + encrypted)
 		cipher = AES.new(self.key, AES.MODE_CBC, iv)
-		decrypted = self.PKCS5Unpad(cipher.decrypt(encrypted))
+		decrypted = self._PKCS5Unpad(cipher.decrypt(encrypted))
 		logging.info(b"Data RECEIVED: " + decrypted)
 		return decrypted
 
 	# Get a new random initialization vector (IV)
-	def getNewIV(self):		
+	def _getNewIV(self):		
 		return self.rndfile.read(self.iv_bytes)
 
 	# Hash password into key
-	def getKeyFromPassword(self, password):
+	def _getKeyFromPassword(self, password):
 		sha = hashlib.sha256()
 		sha.update(password.encode())
 		# Only take first 128 bits (16 B)
 		return sha.digest()[:self.key_bytes]
 
 	# PKCS5Padding padder, allows for longer than 16 byte pads by specifying maxPad
-	def PKCS5Pad(self, s, maxPad=aes_block_size):
+	def _PKCS5Pad(self, s, maxPad=aes_block_size):
 		return s + (maxPad - len(s) % maxPad) * chr(maxPad - len(s) % maxPad).encode()
 
 	# PKCS5Padding unpadder
-	def PKCS5Unpad(self, s):
+	def _PKCS5Unpad(self, s):
 		return s[0:-ord(chr(s[-1]))]
 
 

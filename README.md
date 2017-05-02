@@ -12,10 +12,11 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 * Mouse sensitivity settings
 * UDP and NDN support
 * UDP Security: data encryption only
+* NDN Security: data encryption (signature validation coming soon)
 
 ### Planned Features
 
-* NDN Security: data encryption and packet signature validation
+* NDN Security: packet signature validation
 * Rudimentary keyboard support (for slideshow control?)
 
 ### Supported Platforms
@@ -31,15 +32,20 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 # How to Use
 
 ### Dependencies
-* Python3 (PC)
-* PyAutoGUI (PC)
-* NFD (PC and Android)
+* [Python3](https://www.python.org/downloads/) (PC)
+* [PyAutoGUI](https://pyautogui.readthedocs.io/en/latest/install.html) (PC)
+* [pycrypto](https://pypi.python.org/pypi/pycrypto) (PC)
+* [NFD](http://named-data.net/doc/NFD/current/) (PC and Android)
 
 ### Install
 
 1. Install NFD on your [Android phone](https://play.google.com/store/apps/details?id=net.named_data.nfd) and the [PC](http://named-data.net/doc/NFD/current/INSTALL.html) on which you want to control the mouse.
 1. Compile and install the app using Android Studio on your Android phone.
-1. On your PC, install [Python3](https://www.python.org/downloads/) and [PyAutoGUI](https://pyautogui.readthedocs.io/en/latest/install.html)
+1. On your PC, install Python3, PyAutoGUI, and pycrypto
+	1. Python3: `sudo apt-get install python3`
+	1. pip3 (to help install Python libraries): `sudo apt-get install python3-pip`
+	1. PyAutoGUI: `sudo pip3 install pyautogui`
+	1. pycrypto: `sudo pip3 install pycrypto`
 
 ### Running
 
@@ -50,7 +56,9 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 
 # Screenshots
 
-<img src="./screenshots/screenshot1.png" width="270"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="./screenshots/screenshot2.png" width="270"/>
+<img src="./screenshots/start.png" width="270"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="./screenshots/touchpad.png" width="270"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="./screenshots/settings.png" width="270"/>
+<img src="./screenshots/client1.png" width="420"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="./screenshots/client2.png" width="420"/>
+<img src="./screenshots/client3.png" width="420"/>
 
 # License
 See [here](./LICENSE)

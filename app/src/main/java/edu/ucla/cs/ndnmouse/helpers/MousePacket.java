@@ -48,7 +48,7 @@ public class MousePacket {
      * @throws ShortBufferException for encryption
      * @throws InvalidKeyException for encryption
      */
-    public MousePacket(byte[] encryptedPacket, SecretKeySpec key) throws IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException, ShortBufferException, InvalidKeyException {
+    public MousePacket(byte[] encryptedPacket, SecretKeySpec key) throws IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException, ShortBufferException, InvalidKeyException, NegativeArraySizeException {
         this(key);
         // Decrypt and break down the packet
         mIv = getEncryptedPacketIV(encryptedPacket);

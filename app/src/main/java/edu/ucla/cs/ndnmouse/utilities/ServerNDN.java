@@ -230,7 +230,6 @@ public class ServerNDN implements Runnable, Server {
      * @throws IOException for socket IO error
      */
     public void executeClick(int click) throws IOException {
-//        if (mClickQueue.isEmpty() || click != mClickQueue.peek())
         mClickQueue.add(click);
     }
 

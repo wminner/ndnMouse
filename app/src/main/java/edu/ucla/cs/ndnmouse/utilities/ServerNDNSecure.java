@@ -14,41 +14,29 @@ import net.named_data.jndn.security.SecurityException;
 import net.named_data.jndn.util.Blob;
 
 import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
 
-import javax.crypto.Cipher;
-import javax.crypto.NoSuchPaddingException;
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.ShortBufferException;
 import javax.crypto.spec.SecretKeySpec;
 
 import edu.ucla.cs.ndnmouse.MouseActivity;
 import edu.ucla.cs.ndnmouse.R;
+import edu.ucla.cs.ndnmouse.helpers.MousePacket;
 
 public class ServerNDNSecure extends ServerNDN {
 
     private static final String TAG = ServerNDNSecure.class.getSimpleName();
 
     private SecretKeySpec mKey;
-    private Cipher mCipher;
-    private SecureRandom mRandom;
-    private final static int mIvBytes = 16;
-    private final static int mAesBlockSize = 16;
-    private final static int mSeqNumBytes = 4;
+    private int mSeqNum;
 
     public ServerNDNSecure(MouseActivity activity, float sensitivity, SecretKeySpec key) {
         super(activity, sensitivity);
-
         mKey = key;
-        // Create CSRNG to produce IVs
-        mRandom = new SecureRandom();
-
-        // Get and init cipher algorithm
-        try {
-            // Padding is handled by my own custom PKCS5 padding function (see NetworkHelpers.PKCS5Pad)
-            mCipher = Cipher.getInstance("AES/CBC/NoPadding");
-        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
-            e.printStackTrace();
-        }
+        mSeqNum = 0;
     }
 
     /**
@@ -80,16 +68,24 @@ public class ServerNDNSecure extends ServerNDN {
                         int scaledX = (int) (position.x * mSensitivity);
                         int scaledY = (int) (position.y * mSensitivity);
                         // Build reply string and set data contents
-                        String replyString = moveType + " " + scaledX + "," + scaledY;
+                        byte[] msg = (moveType + " " + scaledX + "," + scaledY).getBytes();
                         // Log.d(TAG, "Sending update: " + replyString);
-                        replyData.setContent(new Blob(replyString));
 
-                        // Send data out face
                         try {
+                            // Encrypt reply
+                            MousePacket mousePacket = new MousePacket(msg, ++mSeqNum, mKey);
+                            byte[] encryptedReply = mousePacket.getEncryptedPacket();
+
+                            // Set content of data
+                            replyData.setContent(new Blob(encryptedReply));
+
+                            // Send data out face
                             face.putData(replyData);
                         } catch (IOException e) {
                             e.printStackTrace();
                             Log.e(TAG, "Failed to put data.");
+                        } catch (ShortBufferException | InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
+                            Log.e(TAG, "Error during data encryption!");
                         }
                     }
                 },
@@ -119,16 +115,25 @@ public class ServerNDNSecure extends ServerNDN {
                             return;
 
                         // Build reply string and set data contents
-                        String replyString = mMouseActivity.getString(mClickQueue.remove());
+                        byte[] msg = (mMouseActivity.getString(mClickQueue.remove())).getBytes();
                         // Log.d(TAG, "Sending update: " + replyString);
-                        replyData.setContent(new Blob(replyString));
 
-                        // Send data out face
                         try {
+                            // Encrypt reply
+                            MousePacket mousePacket = new MousePacket(msg, ++mSeqNum, mKey);
+                            byte[] encryptedReply = mousePacket.getEncryptedPacket();
+
+                            // Set content of data
+                            replyData.setContent(new Blob(encryptedReply));
+
+                            // Send data out face
                             face.putData(replyData);
                         } catch (IOException e) {
                             e.printStackTrace();
                             Log.e(TAG, "Failed to put data.");
+                        } catch (ShortBufferException | InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
+                            e.printStackTrace();
+                            Log.e(TAG, "Error during data encryption!");
                         }
                     }
                 },
