@@ -57,8 +57,8 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 # Screenshots
 
 <img src="./screenshots/start.png" width="270"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="./screenshots/touchpad.png" width="270"/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="./screenshots/settings.png" width="270"/>
-<img src="./screenshots/client1.png" width="420"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="./screenshots/client2.png" width="420"/>
-<img src="./screenshots/client3.png" width="420"/>
+<img src="./screenshots/client1.PNG" width="420"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="./screenshots/client2.PNG" width="420"/>
+<img src="./screenshots/client3.PNG" width="420"/>
 
 # License
 See [here](./LICENSE)
