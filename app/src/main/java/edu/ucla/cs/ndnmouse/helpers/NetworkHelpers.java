@@ -23,9 +23,8 @@ public class NetworkHelpers {
 
     private static final String TAG = NetworkHelpers.class.getSimpleName();
 
-    private static final int mPacketBytes = 48;
     private static final int mAesBlockSize = 16;
-    private static final int mIvBytes = 16;
+    private static final int mIvBytes = mAesBlockSize;
     private static SecureRandom mRandom;
 
     /**
@@ -52,43 +51,13 @@ public class NetworkHelpers {
     }
 
     /**
-     * Prepend IV to the data bytes
-     *
-     * @param data
-     * @param iv
-     * @return
-     */
-    public static byte[] prependIV(byte[] data, IvParameterSpec iv) {
-        byte[] ivBytes = iv.getIV();
-        byte[] res = new byte[data.length + ivBytes.length];
-        System.arraycopy(ivBytes, 0, res, 0, ivBytes.length);
-        System.arraycopy(data, 0, res, ivBytes.length, data.length);
-        return res;
-    }
-
-    /**
-     * Prevend seq num to message bytes
-     *
-     * @param msg
-     * @return
-     */
-    public static byte[] prependSeqNum(byte[] msg, int seqNum) {
-        // Convert seqNum to bytes and prepend it to msg
-        byte[] seqNumBytes = NetworkHelpers.intToBytes(seqNum);
-        byte[] reply = new byte[seqNumBytes.length + msg.length];
-        System.arraycopy(seqNumBytes, 0, reply, 0, seqNumBytes.length);
-        System.arraycopy(msg, 0, reply, seqNumBytes.length, msg.length);
-        return reply;
-    }
-
-    /**
      * PKCS5 padding extended to allow for greater than 16 byte pads
      *
      * @param data to be padded
      * @param maxPad the maximum number of bytes that can be padded
      * @return resulting padded data
      */
-    public static byte[] PKCS5Pad(byte[] data, int maxPad) {
+    private static byte[] PKCS5Pad(byte[] data, int maxPad) {
         byte padChar = (byte) (maxPad - data.length % maxPad);
         int newLen = data.length + padChar;
         byte[] newData = Arrays.copyOf(data, newLen);
@@ -112,7 +81,7 @@ public class NetworkHelpers {
      * @return resulting unpadded data
      */
     @NonNull
-    public static byte[] PKCS5Unpad(byte[] data) {
+    private static byte[] PKCS5Unpad(byte[] data) {
         byte padChar = data[data.length-1];
         return Arrays.copyOf(data, data.length - padChar);
     }
@@ -164,7 +133,7 @@ public class NetworkHelpers {
         Log.d(TAG, "Encrypt data BEFORE: " + new String(message));
         cipher.init(Cipher.ENCRYPT_MODE, key, iv);
         // Log.d(TAG, "Encrypt data AFTER (length " + encryptLen + "): " + Arrays.toString(encrypted));
-        return cipher.doFinal(NetworkHelpers.PKCS5Pad(message, mPacketBytes - mIvBytes));
+        return cipher.doFinal(NetworkHelpers.PKCS5Pad(message, MousePacket.mPacketBytes - mIvBytes));
     }
 
     /**

@@ -10,36 +10,27 @@ import java.net.InetAddress;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.HashMap;
 
 import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 import javax.crypto.ShortBufferException;
-import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import edu.ucla.cs.ndnmouse.MouseActivity;
 import edu.ucla.cs.ndnmouse.R;
-import edu.ucla.cs.ndnmouse.helpers.NetworkHelpers;
+import edu.ucla.cs.ndnmouse.helpers.MousePacket;
 
 public class ServerUDPSecure extends ServerUDP {
 
     private static final String TAG = ServerUDPSecure.class.getSimpleName();
 
-    private SecretKeySpec mKey;
-    private Cipher mCipher;
-    private final static int mIvBytes = 16;
-    private final static int mSeqNumBytes = 4;
-
+    private SecretKeySpec mKey;     // Hashed user password to be used for encryption
     private HashMap<InetAddress, WorkerThreadSecure> mClientThreads;    // Holds all active worker threads that are servicing clients
 
     /**
      * Constructor for server
-     *
      * @param activity of the caller (so we can get position points)
      * @param port number for server to listen on
      * @param sensitivity multiplier for scaling movement
@@ -50,14 +41,6 @@ public class ServerUDPSecure extends ServerUDP {
 
         mKey = key;
         mClientThreads = new HashMap<>();
-
-        // Get and init cipher algorithm
-        try {
-            // Padding is handled by my own custom PKCS5 padding function (see NetworkerHelpers.PKCS5Pad)
-            mCipher = Cipher.getInstance("AES/CBC/NoPadding");
-        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
-            e.printStackTrace();
-        }
     }
 
     @Override
@@ -66,7 +49,7 @@ public class ServerUDPSecure extends ServerUDP {
             // Create a new UDP socket
             mSocket = new DatagramSocket(mPort);
             while (mServerIsRunning) {
-                byte[] buf = new byte[mPacketBytes];
+                byte[] buf = new byte[MousePacket.mPacketBytes];
                 // Get incoming packet
                 DatagramPacket packet = new DatagramPacket(buf, buf.length);
                 mSocket.receive(packet);  // Blocks program flow
@@ -74,16 +57,12 @@ public class ServerUDPSecure extends ServerUDP {
                 // Get data from packet
                 byte[] data = packet.getData();
                 // Log.d(TAG, "Incoming data: " + Arrays.toString(data));
-
-                IvParameterSpec server_iv = new IvParameterSpec(Arrays.copyOfRange(data, 0, mIvBytes));
-                byte[] encrypted = Arrays.copyOfRange(data, mIvBytes, data.length);
-
                 try {
-                    // Decrypt the data and trim null bytes
-                    byte[] decrypted = NetworkHelpers.decryptData(encrypted, mCipher, mKey, server_iv);
+                    MousePacket mousePacket = new MousePacket(data, mKey);
 
-                    int clientSeqNum = NetworkHelpers.intFromBytes(Arrays.copyOf(decrypted, mSeqNumBytes));
-                    String msg = new String(Arrays.copyOfRange(decrypted, mSeqNumBytes, decrypted.length));
+                    // Use mouse packet to decrypt the message and get the seq num
+                    String msg = mousePacket.getMessage();
+                    int clientSeqNum = mousePacket.getSeqNum();
 
                     // If new client...
                     if (msg.startsWith(mMouseActivity.getString(R.string.protocol_opening_request))) {
@@ -139,7 +118,6 @@ public class ServerUDPSecure extends ServerUDP {
 
     /**
      * Send a click command to all current clients
-     *
      * @param click identifier for the type of click
      * @throws IOException for socket IO error
      */
@@ -160,7 +138,6 @@ public class ServerUDPSecure extends ServerUDP {
 
         /**
          * Constructor
-         *
          * @param socket shared UDP socket from that parent is managing
          * @param packet initial packet that client uses to establish a connection with the server
          */
@@ -171,7 +148,6 @@ public class ServerUDPSecure extends ServerUDP {
 
         /**
          * Send acknowledgement to client that you received keep alive
-         *
          * @param openAck if this ack is replying to an OPEN message
          * @throws IOException for error during socket sending
          */
@@ -183,14 +159,11 @@ public class ServerUDPSecure extends ServerUDP {
             else
                 msg = (mMouseActivity.getString(R.string.protocol_heartbeat_ack)).getBytes();
 
-            // Add seq num, encrypt, and prepend IV
-            byte[] reply = NetworkHelpers.prependSeqNum(msg, ++mSeqNum);
-            IvParameterSpec iv = NetworkHelpers.getNewIV();
             try {
-                // Pad reply message with null bytes before encrypting
-                byte[] encryptedReply = NetworkHelpers.encryptData(reply, mCipher, mKey, iv);
-                byte[] encryptedReplyWithIv = NetworkHelpers.prependIV(encryptedReply, iv);
-                DatagramPacket replyPacket = new DatagramPacket(encryptedReplyWithIv, encryptedReplyWithIv.length, mReplyAddr, mReplyPort);
+                // Create mouse packet from message, and send out encrypted reply
+                MousePacket mousePacket = new MousePacket(msg, ++mSeqNum, mKey);
+                byte[] encryptedReply = mousePacket.getEncryptedPacket();
+                DatagramPacket replyPacket = new DatagramPacket(encryptedReply, encryptedReply.length, mReplyAddr, mReplyPort);
                 mSocket.send(replyPacket);
             } catch (InvalidAlgorithmParameterException | InvalidKeyException | BadPaddingException | ShortBufferException | IllegalBlockSizeException e) {
                 e.printStackTrace();
@@ -216,19 +189,13 @@ public class ServerUDPSecure extends ServerUDP {
                     int scaledX = (int) (position.x * mSensitivity);
                     int scaledY = (int) (position.y * mSensitivity);
 
-                    // Build reply packet using seq num and message
+                    // Build reply message, create mouse packet from it, and send out encrypted reply
                     byte[] msg = (moveType + " " + scaledX + "," + scaledY).getBytes();
-                    byte[] reply = NetworkHelpers.prependSeqNum(msg, ++mSeqNum);
-
-                    // Encrypt reply and prepend cleartext IV
-                    IvParameterSpec iv = NetworkHelpers.getNewIV();
                     try {
-                        byte[] encryptedReply = NetworkHelpers.encryptData(reply, mCipher, mKey, iv);
-                        byte[] encryptedReplyWithIv = NetworkHelpers.prependIV(encryptedReply, iv);
-
-                        // Send out socket
-                        Log.d(TAG, "Sending update: " + Arrays.toString(encryptedReplyWithIv));
-                        DatagramPacket replyPacket = new DatagramPacket(encryptedReplyWithIv, encryptedReplyWithIv.length, mReplyAddr, mReplyPort);
+                        MousePacket mousePacket = new MousePacket(msg, ++mSeqNum, mKey);
+                        byte[] encryptedReply = mousePacket.getEncryptedPacket();
+                        Log.d(TAG, "Sending update: " + Arrays.toString(encryptedReply));
+                        DatagramPacket replyPacket = new DatagramPacket(encryptedReply, encryptedReply.length, mReplyAddr, mReplyPort);
                         mSocket.send(replyPacket);
 
                     } catch (ShortBufferException | InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
@@ -242,18 +209,18 @@ public class ServerUDPSecure extends ServerUDP {
             }
         }
 
+        /**
+         * Executes click for this specific server/client session
+         * @param click type
+         * @throws IOException when sending through socket
+         */
         void executeClick(int click) throws IOException {
-            // Build reply packet using seq num and message
+            // Build reply message, create mouse packet from it, and send out encrypted reply
             byte[] msg = (mMouseActivity.getString(click)).getBytes();
-            byte[] reply = NetworkHelpers.prependSeqNum(msg, ++mSeqNum);
-
-            // Encrypt reply and prepend cleartext IV
-            IvParameterSpec iv = NetworkHelpers.getNewIV();
-
             try {
-                byte[] encryptedReply = NetworkHelpers.encryptData(reply, mCipher, mKey, iv);
-                byte[] encryptedReplyWithIv = NetworkHelpers.prependIV(encryptedReply, iv);
-                DatagramPacket replyPacket = new DatagramPacket(encryptedReplyWithIv, encryptedReplyWithIv.length, mReplyAddr, mReplyPort);
+                MousePacket mousePacket = new MousePacket(msg, ++mSeqNum, mKey);
+                byte[] encryptedReply = mousePacket.getEncryptedPacket();
+                DatagramPacket replyPacket = new DatagramPacket(encryptedReply, encryptedReply.length, mReplyAddr, mReplyPort);
                 mSocket.send(replyPacket);
             } catch (InvalidAlgorithmParameterException | InvalidKeyException | ShortBufferException | BadPaddingException | IllegalBlockSizeException e) {
                 e.printStackTrace();
@@ -261,14 +228,20 @@ public class ServerUDPSecure extends ServerUDP {
             }
         }
 
+        /**
+         * Sequence number helpers
+         * @return sequence number for this specific server/client session
+         */
         int getSeqNum() {
             return mSeqNum;
         }
 
+        /**
+         * Set the sequence number for this specific server/client session
+         * @param newSeqNum to set mSeqNum to
+         */
         void setSeqNum(int newSeqNum) {
             mSeqNum = newSeqNum;
         }
     }
-
-
 }

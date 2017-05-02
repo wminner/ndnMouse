@@ -14,6 +14,7 @@ import java.util.List;
 
 import edu.ucla.cs.ndnmouse.MouseActivity;
 import edu.ucla.cs.ndnmouse.R;
+import edu.ucla.cs.ndnmouse.helpers.MousePacket;
 
 /**
  * Class to provide UDP communication with the PC client
@@ -29,7 +30,6 @@ public class ServerUDP implements Runnable, Server {
     float mSensitivity;                             // Sensitivity multiplier for relative movement
 
     private HashMap<InetAddress, WorkerThread> mClientThreads;    // Holds all active worker threads that are servicing clients
-    final static int mPacketBytes = 48;
 
     /**
      * Constructor for server
@@ -84,7 +84,7 @@ public class ServerUDP implements Runnable, Server {
             // Create a new UDP socket
             mSocket = new DatagramSocket(mPort);
             while (mServerIsRunning) {
-                byte[] buf = new byte[mPacketBytes];
+                byte[] buf = new byte[MousePacket.mPacketBytes];
                 // Get incoming packet
                 DatagramPacket packet = new DatagramPacket(buf, buf.length);
                 mSocket.receive(packet);  // Blocks program flow
