@@ -5,4 +5,7 @@
     <color name="colorAccent">#FF4081</color>
     <color name="borderColor">#4fa5d5</color>
     <color name="backgroundColor">#ffffff</color>
+    <color name="ndnColorPrimary">#cf5f28</color>
+    <color name="ndnColorPrimaryDark">#ac4919</color>
+    <color name="ndnColorAccent">#009688</color>
 </resources>
