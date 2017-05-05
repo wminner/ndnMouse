@@ -11,12 +11,11 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 * Mouse control: movement, left click, right click, tap-to-click
 * Mouse sensitivity settings
 * UDP and NDN support
-* UDP Security: data encryption only
-* NDN Security: data encryption (signature validation coming soon)
+* UDP Security: data encryption
+* NDN Security: data encryption
 
 ### Planned Features
 
-* NDN Security: packet signature validation
 * Rudimentary keyboard support (for slideshow control?)
 
 ### Supported Platforms

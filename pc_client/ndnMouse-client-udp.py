@@ -202,7 +202,9 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 
 	def __init__(self, addr, port, password):
 		super().__init__(addr, port)
-		self.key = self._getKeyFromPassword(password)
+		self.password = password
+		self.key = b""	# To be set when we generate a password salt in _openConnection
+		self.open_key = self._getKeyFromPassword(password)
 		self.rndfile = Random.new()
 
 
@@ -212,11 +214,12 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 		while got_timeout:
 			self.seq_num = 0
 			iv = self._getNewIV()
+			self.key = self._getKeyFromPassword(self.password, salt=iv)
 
 			# Create message from IV, seq num, and protocol msg
 			message = intToBytes(self.seq_num) + b"OPEN"
 			logging.debug(b"Sending message: " + iv + message)
-			encrypted_message = self._encryptData(message, iv)
+			encrypted_message = self._encryptData(message, self.open_key, iv)
 			encrypted_message_with_iv = iv + encrypted_message
 			try:
 				# Send and receive data
@@ -226,7 +229,7 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 				# Extract cleartext IV and ciphertext response, then decrypt it
 				server_iv = data[:self.iv_bytes]
 				encrypted = data[self.iv_bytes:]
-				decrypted = self._decryptData(encrypted, server_iv)
+				decrypted = self._decryptData(encrypted, self.key, server_iv)
 
 				# If decrypted response is what we expect...
 				if decrypted.startswith(b"\x00\x00\x00\x01OPEN-ACK"):
@@ -254,7 +257,7 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 			# Create message from IV, seq num, and protocol msg
 			message = intToBytes(self.seq_num) + b"HEART"
 			logging.debug(b"Sending message: " + iv + message)
-			encrypted_message = self._encryptData(message, iv)
+			encrypted_message = self._encryptData(message, self.key, iv)
 			encrypted_message_with_iv = iv + encrypted_message
 			try:
 				# Send and receive data
@@ -264,7 +267,7 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 				# Extract cleartext IV and ciphertext response, then decrypt it
 				server_iv = data[:self.iv_bytes]
 				encrypted = data[self.iv_bytes:]
-				decrypted = self._decryptData(encrypted, server_iv)
+				decrypted = self._decryptData(encrypted, self.key, server_iv)
 
 				server_seq_num = intFromBytes(decrypted[:self.seq_num_bytes])
 				# logging.info("server seq num = {0}, client seq num = {1}".format(server_seq_num, self.seq_num))
@@ -315,7 +318,7 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 			# Extract cleartext IV and ciphertext message, then decrypt it
 			server_iv = data[:self.iv_bytes]
 			encrypted = data[self.iv_bytes:]
-			decrypted = self._decryptData(encrypted, server_iv)
+			decrypted = self._decryptData(encrypted, self.key, server_iv)
 
 			server_seq_num = intFromBytes(decrypted[:self.seq_num_bytes])
 			# If decrypted message has a valid seq num...
@@ -340,7 +343,7 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 
 		message = intToBytes(self.seq_num) + b"CLOSE"
 		logging.debug(b"Sending message: " + message)
-		encrypted_message = self._encryptData(message, iv)
+		encrypted_message = self._encryptData(message, self.key, iv)
 		encrypted_message_with_iv = iv + encrypted_message
 
 		self.sock.sendto(encrypted_message_with_iv, self.server_address)
@@ -352,18 +355,18 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 	############################################################################
 
 	# Encrypt data
-	def _encryptData(self, message, iv):
+	def _encryptData(self, message, key, iv):
 		logging.info(b"Data SENT: " + message)
-		cipher = AES.new(self.key, AES.MODE_CBC, iv)
+		cipher = AES.new(key, AES.MODE_CBC, iv)
 		message = self._PKCS5Pad(message, self.packet_bytes - self.iv_bytes)
 		encrypted = cipher.encrypt(message)
 		logging.debug(b"Encrypting data SENT: " + encrypted)
 		return encrypted
 
 	# Decrypt data
-	def _decryptData(self, encrypted, iv):
+	def _decryptData(self, encrypted, key, iv):
 		logging.debug(b"Encrypted data RECEIVED: " + encrypted)
-		cipher = AES.new(self.key, AES.MODE_CBC, iv)
+		cipher = AES.new(key, AES.MODE_CBC, iv)
 		decrypted = self._PKCS5Unpad(cipher.decrypt(encrypted))
 		logging.info(b"Data RECEIVED: " + decrypted)
 		return decrypted
@@ -372,10 +375,12 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 	def _getNewIV(self):		
 		return self.rndfile.read(self.iv_bytes)
 
-	# Hash password into key
-	def _getKeyFromPassword(self, password):
+	# Hash password and salt (if provided) into key
+	# 	password: string
+	#	salt: byte string
+	def _getKeyFromPassword(self, password, salt=b""):
 		sha = hashlib.sha256()
-		sha.update(password.encode())
+		sha.update(password.encode() + salt)
 		# Only take first 128 bits (16 B)
 		return sha.digest()[:self.key_bytes]
 

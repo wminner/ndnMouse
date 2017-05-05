@@ -4,17 +4,20 @@ import android.graphics.Point;
 import android.util.Log;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.HashMap;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.ShortBufferException;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import edu.ucla.cs.ndnmouse.MouseActivity;
@@ -25,20 +28,29 @@ public class ServerUDPSecure extends ServerUDP {
 
     private static final String TAG = ServerUDPSecure.class.getSimpleName();
 
-    private SecretKeySpec mKey;     // Hashed user password to be used for encryption
+    private String mPassword;
+    private SecretKeySpec mOpenKey; // Hashed user password to be used for encryption on the opening message only
     private HashMap<InetAddress, WorkerThreadSecure> mClientThreads;    // Holds all active worker threads that are servicing clients
+    private static final int mWorkerDropCounterTheshold = 3;
 
     /**
      * Constructor for server
      * @param activity of the caller (so we can get position points)
      * @param port number for server to listen on
      * @param sensitivity multiplier for scaling movement
-     * @param key derived from user's password
+     * @param password from user
      */
-    public ServerUDPSecure(MouseActivity activity, int port, float sensitivity, SecretKeySpec key) {
+    public ServerUDPSecure(MouseActivity activity, int port, float sensitivity, String password) {
         super(activity, port, sensitivity);
 
-        mKey = key;
+        mPassword = password;
+        try {
+            mOpenKey = mMouseActivity.makeKeyFromPassword(password);
+        } catch (UnsupportedEncodingException | NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            Log.e(TAG, "Error: failed to create KeySpec! Aborting...");
+            mMouseActivity.finish();
+        }
         mClientThreads = new HashMap<>();
     }
 
@@ -57,55 +69,73 @@ public class ServerUDPSecure extends ServerUDP {
                 byte[] data = packet.getData();
                 // Log.d(TAG, "Incoming data: " + Arrays.toString(data));
                 try {
-                    MousePacket mousePacket = new MousePacket(data, mKey);
+                    // If existing client sent us a message...
+                    if (mClientThreads.containsKey(packet.getAddress())) {
+                        WorkerThreadSecure worker = mClientThreads.get(packet.getAddress());
+                        MousePacket mousePacket = new MousePacket(data, worker.mKey);
 
-                    // Use mouse packet to decrypt the message and get the seq num
-                    String msg = mousePacket.getMessage();
-                    int clientSeqNum = mousePacket.getSeqNum();
+                        // Use mouse packet to decrypt the message and get the seq num
+                        String msg = mousePacket.getMessage();
+                        int clientSeqNum = mousePacket.getSeqNum();
 
-                    // If new client...
-                    if (msg.startsWith(mMouseActivity.getString(R.string.protocol_opening_request))) {
-                        // If seq num not correct, throw out packet and loop
-                        if (0 != clientSeqNum)
-                            continue;
-
-                        // If client is already being serviced, kill its worker and start a new one
-                        if (mClientThreads.containsKey(packet.getAddress())) {
-                            mClientThreads.get(packet.getAddress()).stop();
-                            mClientThreads.remove(packet.getAddress());
-                        }
-
-                        // Start a new worker thread for the client
-                        WorkerThreadSecure worker = new WorkerThreadSecure(mSocket, packet);
-                        worker.start();
-                        mClientThreads.put(packet.getAddress(), worker);
-                        Log.d(TAG, "Number of clients: " + mClientThreads.size());
-                    }
-
-                    // Otherwise if existing client is requesting heartbeat...
-                    else if (msg.startsWith(mMouseActivity.getString(R.string.protocol_heartbeat_request))) {
-                        if (mClientThreads.containsKey(packet.getAddress())) {
-                            WorkerThreadSecure worker = mClientThreads.get(packet.getAddress());
-                            // Only acknowledge if seq num is valid
-                            if (clientSeqNum > worker.getSeqNum()) {
-                                worker.setSeqNum(clientSeqNum);
-                                worker.sendAck(false);
+                        // If existing client is requesting heartbeat...
+                        if (msg.startsWith(mMouseActivity.getString(R.string.protocol_heartbeat_request))) {
+                            if (mClientThreads.containsKey(packet.getAddress())) {
+                                // Only acknowledge if seq num is valid
+                                if (clientSeqNum > worker.getSeqNum()) {
+                                    worker.setSeqNum(clientSeqNum);
+                                    worker.sendAck(false);
+                                }
                             }
-                        }
-
-                    // Otherwise if existing client no longer wants updates...
-                    } else if (msg.startsWith(mMouseActivity.getString(R.string.protocol_closing_request))) {
-                        // Look up its thread and stop it
-                        if (mClientThreads.containsKey(packet.getAddress())) {
-                            WorkerThreadSecure client = mClientThreads.get(packet.getAddress());
-                            // Only stop worker thread if seq num is valid
-                            if (clientSeqNum > client.getSeqNum()) {
-                                client.stop();
+                        // If existing client no longer wants updates...
+                        } else if (msg.startsWith(mMouseActivity.getString(R.string.protocol_closing_request))) {
+                            // Look up its thread and stop it
+                            if (mClientThreads.containsKey(packet.getAddress())) {
+                                // Only stop worker thread if seq num is valid
+                                if (clientSeqNum > worker.getSeqNum()) {
+                                    worker.stop();
+                                    mClientThreads.remove(packet.getAddress());
+                                }
+                            }
+                        // Otherwise existing client sent bad message, increment their drop counter
+                        } else {
+                            // If client sent too many bad messages, drop its session
+                            if (++worker.mDropCounter >= mWorkerDropCounterTheshold) {
+                                worker.stop();
                                 mClientThreads.remove(packet.getAddress());
                             }
                         }
+
+                    // Otherwise must be a new client...
+                    } else {
+                        MousePacket mousePacket = new MousePacket(data, mOpenKey);
+
+                        // Use mouse packet to decrypt the message and get the seq num
+                        String msg = mousePacket.getMessage();
+                        int clientSeqNum = mousePacket.getSeqNum();
+
+                        if (msg.startsWith(mMouseActivity.getString(R.string.protocol_opening_request))) {
+                            // If seq num not correct, throw out packet and loop
+                            if (0 != clientSeqNum)
+                                continue;
+
+                            // Start a new worker thread for the client
+                            WorkerThreadSecure worker = new WorkerThreadSecure(mSocket, packet);
+                            worker.start();
+                            mClientThreads.put(packet.getAddress(), worker);
+                            Log.d(TAG, "Number of clients: " + mClientThreads.size());
+                        }
                     }
-                } catch (ShortBufferException | InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException | NegativeArraySizeException e) {
+                } catch (ShortBufferException | InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException | NegativeArraySizeException | NoSuchAlgorithmException e) {
+                    // Existing client sent bad message, increment their drop counter
+                    if (mClientThreads.containsKey(packet.getAddress())) {
+                        WorkerThreadSecure worker = mClientThreads.get(packet.getAddress());
+                        // If client sent too many bad messages, drop its session
+                        if (++worker.mDropCounter >= mWorkerDropCounterTheshold) {
+                            worker.stop();
+                            mClientThreads.remove(packet.getAddress());
+                        }
+                    }
                     Log.e(TAG, "Error during data decrypt!");
                 }
             }
@@ -133,15 +163,22 @@ public class ServerUDPSecure extends ServerUDP {
     private class WorkerThreadSecure extends WorkerThread {
 
         private int mSeqNum;
+        private SecretKeySpec mKey;     // Hashed and salted user password to be used for encryption on everything else
+        private int mDropCounter;
 
         /**
          * Constructor
          * @param socket shared UDP socket from that parent is managing
          * @param packet initial packet that client uses to establish a connection with the server
          */
-        WorkerThreadSecure(DatagramSocket socket, DatagramPacket packet) {
+        WorkerThreadSecure(DatagramSocket socket, DatagramPacket packet) throws UnsupportedEncodingException, NoSuchAlgorithmException {
             super(socket, packet);
             mSeqNum = 0;
+            mDropCounter = 0;
+
+            // Generate the salted password key from the opening IV (to be used for the rest of the session)
+            IvParameterSpec passwordSalt = MousePacket.getEncryptedPacketIV(packet.getData());
+            mKey = mMouseActivity.makeKeyFromPassword(mPassword, passwordSalt.getIV());
         }
 
         /**

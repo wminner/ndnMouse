@@ -116,11 +116,11 @@ public class MousePacket {
     }
 
     /**
-     * Gets the IV of the encrypted packet
+     * Gets the IV of the encrypted packet (sometimes used as a password salt)
      * @param encryptedPacket bytes of the full encrypted packet
      * @return iv from the packet
      */
-    private static IvParameterSpec getEncryptedPacketIV(byte[] encryptedPacket) {
+    public static IvParameterSpec getEncryptedPacketIV(byte[] encryptedPacket) {
         return new IvParameterSpec(Arrays.copyOf(encryptedPacket, mIvBytes));
     }
 

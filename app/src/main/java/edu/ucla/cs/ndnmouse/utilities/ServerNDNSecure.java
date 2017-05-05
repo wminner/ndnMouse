@@ -14,8 +14,10 @@ import net.named_data.jndn.security.SecurityException;
 import net.named_data.jndn.util.Blob;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -30,12 +32,27 @@ public class ServerNDNSecure extends ServerNDN {
 
     private static final String TAG = ServerNDNSecure.class.getSimpleName();
 
+    private String mPassword;
     private SecretKeySpec mKey;
     private int mSeqNum;
 
-    public ServerNDNSecure(MouseActivity activity, float sensitivity, SecretKeySpec key) {
+    /**
+     * Constructor for server
+     * @param activity of the caller (so we can get position points)
+     * @param sensitivity multiplier for scaling movement
+     * @param password from user
+     */
+    public ServerNDNSecure(MouseActivity activity, float sensitivity, String password) {
         super(activity, sensitivity);
-        mKey = key;
+
+        mPassword = password;
+        try {
+            mKey = mMouseActivity.makeKeyFromPassword(password);
+        } catch (UnsupportedEncodingException | NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            Log.e(TAG, "Error: failed to create KeySpec! Aborting...");
+            mMouseActivity.finish();
+        }
         mSeqNum = 0;
     }
 

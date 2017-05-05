@@ -83,31 +83,21 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                 Log.d(TAG, String.format("Touchpad width is %d", mTouchpadWidth));
                 Log.d(TAG, String.format("Touchpad height is %d", mTouchpadHeight));
 
-                try {
-                    // Get password key
-                    SecretKeySpec keySpec = makeKeyFromPassword(mPassword);
-
-                    // Create and start mServer
-                    if (mUseNDN) {
-                        if (mPassword.isEmpty())
-                            mServer = new ServerNDN(MouseActivity.this, mSensitivity);
-                        else
-                            mServer = new ServerNDNSecure(MouseActivity.this, mSensitivity, keySpec);
-                        Log.d(TAG, "Creating NDN server...");
-                    } else {
-                        if (mPassword.isEmpty())
-                            mServer = new ServerUDP(MouseActivity.this, mPort, mSensitivity);
-                        else
-                            mServer = new ServerUDPSecure(MouseActivity.this, mPort, mSensitivity, keySpec);
-                        Log.d(TAG, "Creating UDP server...");
-                    }
-                    mServer.start();
-
-                } catch (UnsupportedEncodingException | NoSuchAlgorithmException e) {
-                    e.printStackTrace();
-                    Log.e(TAG, "Error: failed to create KeySpec! Aborting...");
-                    finish();
+                // Create and start mServer
+                if (mUseNDN) {
+                    if (mPassword.isEmpty())
+                        mServer = new ServerNDN(MouseActivity.this, mSensitivity);
+                    else
+                        mServer = new ServerNDNSecure(MouseActivity.this, mSensitivity, mPassword);
+                    Log.d(TAG, "Creating NDN server...");
+                } else {
+                    if (mPassword.isEmpty())
+                        mServer = new ServerUDP(MouseActivity.this, mPort, mSensitivity);
+                    else
+                        mServer = new ServerUDPSecure(MouseActivity.this, mPort, mSensitivity, mPassword);
+                    Log.d(TAG, "Creating UDP server...");
                 }
+                mServer.start();
             }
         });
 
@@ -233,7 +223,6 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
-                        // mTouchDownTime = Calendar.getInstance().getTimeInMillis();
                         mTouchDownTime = System.currentTimeMillis();
                         mTouchDownPos.set(x, y);
                         mTouchDown = true;
@@ -246,7 +235,6 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                     case MotionEvent.ACTION_UP:
                         // Check if user tapped (for tap-to-click)
                         if (mTapToLeftClick && ((Math.abs(x - mTouchDownPos.x) <= mTapClickPixelThreshold) && (Math.abs(y - mTouchDownPos.y) <= mTapClickPixelThreshold))) {
-                            // long now = Calendar.getInstance().getTimeInMillis();
                             long now = System.currentTimeMillis();
                             if (now - mTouchDownTime <= mTapClickMillisThreshold) {
                                 try {
@@ -273,8 +261,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
     /**
      * Update mAbsPos variable if the new position is different enough from the previous position
-     * defined by the mMovementThreashold
-     *
+     * defined by the mMovementThreshold
      * @param x horizontal coordinate on the touchpad TextView
      * @param y vertical coordinate on the touchpad TextView
      */
@@ -296,7 +283,6 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
     /**
      * Function to display user's clicks on the touchpad (for debugging purposes)
-     *
      * @param click either "left_click" or "right_click", found in res/values/strings.xml
      */
     private void displayClick(String click) {
@@ -313,7 +299,6 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     /**
      * Function to get the relative position of the last user's touch.  Should behave similar to a
      * laptop trackpad.
-     *
      * @return position difference from last touch down
      */
     public Point getRelativePosition() {
@@ -333,16 +318,36 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
     /**
      * Creates a SecretKeySpec from the user's password
-     *
      * @param password from the user
      * @return 128 bit (16 B) secret key
      * @throws UnsupportedEncodingException for message digest's encoding
      * @throws NoSuchAlgorithmException for secret key algorithm
      */
-    private SecretKeySpec makeKeyFromPassword(String password) throws UnsupportedEncodingException, NoSuchAlgorithmException {
+    public SecretKeySpec makeKeyFromPassword(String password) throws UnsupportedEncodingException, NoSuchAlgorithmException {
         byte[] key = password.getBytes("UTF-8");
         MessageDigest sha = MessageDigest.getInstance("SHA-256");
         // Copy only 128 bits (16 B) from digest to use for secret key
         return new SecretKeySpec(Arrays.copyOf(sha.digest(key), 16), "AES");
+    }
+
+    /**
+     * Creates a SecretKeySpec from the user's password and salt
+     * @param password from the user
+     * @param salt to add to password
+     * @return 128 bit (16 B) secret key
+     * @throws UnsupportedEncodingException for message digest's encoding
+     * @throws NoSuchAlgorithmException for secret key algorithm
+     */
+    public SecretKeySpec makeKeyFromPassword(String password, byte[] salt) throws UnsupportedEncodingException, NoSuchAlgorithmException {
+        byte[] key = password.getBytes("UTF-8");
+
+        // Append salt to key
+        byte[] keyAndSalt = new byte[key.length + salt.length];
+        System.arraycopy(key, 0, keyAndSalt, 0, key.length);
+        System.arraycopy(salt, 0, keyAndSalt, key.length, salt.length);
+
+        MessageDigest sha = MessageDigest.getInstance("SHA-256");
+        // Copy only 128 bits (16 B) from digest to use for secret key
+        return new SecretKeySpec(Arrays.copyOf(sha.digest(keyAndSalt), 16), "AES");
     }
 }

@@ -19,7 +19,7 @@ import javax.crypto.spec.SecretKeySpec;
 /**
  * Helpers to format/process data sent and received by network
  */
-public class NetworkHelpers {
+class NetworkHelpers {
 
     private static final String TAG = NetworkHelpers.class.getSimpleName();
 
@@ -34,7 +34,7 @@ public class NetworkHelpers {
      * @return byte array (size 4) of the converted integer
      */
     @NonNull
-    public static byte[] intToBytes(int x) {
+    static byte[] intToBytes(int x) {
         ByteBuffer buf = ByteBuffer.allocate(4);
         buf.putInt(x);
         return buf.array();
@@ -46,7 +46,7 @@ public class NetworkHelpers {
      * @param xbytes array of bytes to convert (must be size 4)
      * @return converted integer
      */
-    public static int intFromBytes(byte[] xbytes) {
+    static int intFromBytes(byte[] xbytes) {
         return ByteBuffer.wrap(xbytes).getInt();
     }
 
@@ -122,16 +122,16 @@ public class NetworkHelpers {
     /**
      * Encrypts data using user key and specified IV
      *
-     * @param message
-     * @param iv
-     * @return
-     * @throws InvalidAlgorithmParameterException
-     * @throws InvalidKeyException
-     * @throws ShortBufferException
-     * @throws BadPaddingException
-     * @throws IllegalBlockSizeException
+     * @param message to encrypt
+     * @param iv (initialization vector) to use with CBC
+     * @return bytes of encrypted message
+     * @throws InvalidAlgorithmParameterException during encryption
+     * @throws InvalidKeyException during encryption
+     * @throws ShortBufferException during encryption
+     * @throws BadPaddingException during encryption
+     * @throws IllegalBlockSizeException during encryption
      */
-    public static byte[] encryptData(byte[] message, Cipher cipher, SecretKeySpec key, IvParameterSpec iv) throws InvalidAlgorithmParameterException, InvalidKeyException, ShortBufferException, BadPaddingException, IllegalBlockSizeException {
+    static byte[] encryptData(byte[] message, Cipher cipher, SecretKeySpec key, IvParameterSpec iv) throws InvalidAlgorithmParameterException, InvalidKeyException, ShortBufferException, BadPaddingException, IllegalBlockSizeException {
         Log.d(TAG, "Encrypt data BEFORE: " + new String(message));
         cipher.init(Cipher.ENCRYPT_MODE, key, iv);
         // Log.d(TAG, "Encrypt data AFTER (length " + encryptLen + "): " + Arrays.toString(encrypted));
@@ -141,16 +141,16 @@ public class NetworkHelpers {
     /**
      * Decrypts data using user key and specified IV
      *
-     * @param encrypted
-     * @param iv
-     * @return
-     * @throws InvalidAlgorithmParameterException
-     * @throws InvalidKeyException
-     * @throws ShortBufferException
-     * @throws BadPaddingException
-     * @throws IllegalBlockSizeException
+     * @param encrypted bytes to decrypt
+     * @param iv (initialization vector) to use with CBC
+     * @return bytes of decrypted message
+     * @throws InvalidAlgorithmParameterException during encryption
+     * @throws InvalidKeyException during encryption
+     * @throws ShortBufferException during encryption
+     * @throws BadPaddingException during encryption
+     * @throws IllegalBlockSizeException during encryption
      */
-    public static byte[] decryptData(byte[] encrypted, Cipher cipher, SecretKeySpec key, IvParameterSpec iv) throws InvalidAlgorithmParameterException, InvalidKeyException, ShortBufferException, BadPaddingException, IllegalBlockSizeException, NegativeArraySizeException {
+    static byte[] decryptData(byte[] encrypted, Cipher cipher, SecretKeySpec key, IvParameterSpec iv) throws InvalidAlgorithmParameterException, InvalidKeyException, ShortBufferException, BadPaddingException, IllegalBlockSizeException, NegativeArraySizeException {
         // Log.d(TAG, "Decrypt data BEFORE: " + Arrays.toString(encrypted));
         cipher.init(Cipher.DECRYPT_MODE, key, iv);
         // Log.d(TAG, "Decrypt data AFTER (length " + decryptLen + "): " + new String(decrypted));
@@ -162,7 +162,7 @@ public class NetworkHelpers {
      *
      * @return random IV
      */
-    public static IvParameterSpec getNewIV() {
+    static IvParameterSpec getNewIV() {
         if (null == mRandom)
             mRandom = new SecureRandom();
         byte[] newIv = new byte[mIvBytes];
