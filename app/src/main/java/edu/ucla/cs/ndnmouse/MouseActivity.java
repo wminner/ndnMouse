@@ -46,7 +46,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     private boolean mBufferAbsPos = true;                       // Used to decide when to buffer an absolute position (to get an accurate relative movement)
     private boolean mTouchDown = false;                         // User is currently touching down on touchpad (has not lifted yet)
     private float mSensitivity;                                 // Sensitivity multiplier for mouse movement control
-    private static final int mMinMovementPixelThreshold = 5;    // Min change in pixels to count as a movement update (otherwise same position)
+    private int mPrecision = 5;                                 // Min change in pixels to count as a movement update (otherwise same position)
 
     // Tap to left click variables
     private boolean mTapToLeftClick = false;                    // Setting to detect tap -> trigger left click
@@ -145,6 +145,8 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         } else if (key.equals(getString(R.string.pref_sensitivity_key))) {
             mSensitivity = Float.valueOf(sharedPreferences.getString(key, getString(R.string.pref_sensitivity_default)));
             mServer.UpdateSettings(R.string.pref_sensitivity_key, mSensitivity);
+        } else if (key.equals(getString(R.string.pref_precision_key))) {
+            mPrecision = Integer.valueOf(sharedPreferences.getString(key, getString(R.string.pref_precision_default)));
         }
     }
 
@@ -155,6 +157,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         mTapToLeftClick = sharedPreferences.getBoolean(getString(R.string.pref_tap_to_left_click_key), getResources().getBoolean(R.bool.pref_tap_to_left_click_default));
         mSensitivity = Float.valueOf(sharedPreferences.getString(getString(R.string.pref_sensitivity_key), getString(R.string.pref_sensitivity_default)));
+        mPrecision = Integer.valueOf(sharedPreferences.getString(getString(R.string.pref_precision_key), getString(R.string.pref_precision_default)));
     }
 
     /**
@@ -266,7 +269,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
      * @param y vertical coordinate on the touchpad TextView
      */
     private void updateAbsolutePosition(int x, int y) {
-        if (Math.abs(x - mAbsPos.x) >= mMinMovementPixelThreshold || Math.abs(y - mAbsPos.y) >= mMinMovementPixelThreshold) {
+        if (Math.abs(x - mAbsPos.x) >= mPrecision || Math.abs(y - mAbsPos.y) >= mPrecision) {
             if ((0 <= x && 0 <= y) &&(x <= mTouchpadWidth && y <= mTouchpadHeight)) {
                 mAbsPos.set(x, y);
             }

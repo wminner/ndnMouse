@@ -26,7 +26,9 @@ dependencies {
     })
     compile 'com.android.support:appcompat-v7:25.3.1'
     compile 'com.android.support.constraint:constraint-layout:1.0.2'
-    compile 'com.android.support:preference-v7:25.3.1'
+//    compile 'com.android.support:preference-v7:25.3.1'
+//    compile 'com.android.support:preference-v14:25.3.1'
+    compile 'com.takisoft.fix:preference-v7:25.3.1.0'
     compile 'net.named-data:jndn-android:0.15'
     testCompile 'junit:junit:4.12'
 }

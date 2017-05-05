@@ -255,7 +255,7 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 			except UnicodeDecodeError:
 				logging.error("Failed to decrypt data. Wrong password?")
 		else:
-			logging.error("Bad sequence number received. Wrong password?")
+			logging.error("Bad sequence number received. Restart client if you think these are valid messages.")
 
 		# Resend interest to get move/click data
 		self.face.expressInterest(interest, self._onData, self._onTimeout)
