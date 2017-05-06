@@ -58,7 +58,7 @@
     <string name="pref_movement_label">Movement</string>
     <string name="pref_move_rel_label">Relative</string>
     <string name="pref_move_abs_label">Absolute</string>
-    <string name="pref_precision_label">Precision</string>
+    <string name="pref_precision_label">Pixel Precision</string>
     <string name="pref_sensitivity_label">Sensitivity</string>
 
     <!--Preference Key/Values-->

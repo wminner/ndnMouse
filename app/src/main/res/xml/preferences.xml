@@ -13,17 +13,17 @@
         <!--android:key="@string/pref_movement_key"-->
         <!--android:title="@string/pref_movement_label" />-->
 
-    <EditTextPreference
-        android:defaultValue="@string/pref_precision_default"
-        android:inputType="number"
-        android:key="@string/pref_precision_key"
-        android:title="@string/pref_precision_label" />
-
     <ListPreference
         android:defaultValue="@string/pref_sensitivity_default"
         android:entries="@array/pref_sensitivity_labels"
         android:entryValues="@array/pref_sensitivity_values"
         android:key="@string/pref_sensitivity_key"
         android:title="@string/pref_sensitivity_label" />
+
+    <EditTextPreference
+        android:defaultValue="@string/pref_precision_default"
+        android:inputType="number"
+        android:key="@string/pref_precision_key"
+        android:title="@string/pref_precision_label" />
 
 </PreferenceScreen>
