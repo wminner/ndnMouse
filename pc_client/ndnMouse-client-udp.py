@@ -12,7 +12,7 @@ from Crypto.Cipher import AES
 import hashlib
 
 def main(argv):
-	LOG_FILENAME = "log_udp.txt"
+	LOG_FILENAME = "log.txt"
 	logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO)
 	
 	default_address = '149.142.48.182'
@@ -129,14 +129,15 @@ class ndnMouseClientUDP():
 			
 			# Handle different commands
 			if msg.startswith("REL") or msg.startswith("ABS"):
-				self._handleMove(msg, self.transition_time)
+				self._handleMove(msg)
 			elif msg.startswith("CLK"):
 				_, click, updown = msg.split('_')
 				self._handleClick(click, updown)
-			else:	# Got acknowledgement message from server, do nothing
-				continue
+			elif msg.startswith("KP"):
+				_, keypress, updown = msg.split('_')
+				self._handleKeypress(keypress, updown)
 
-			logging.info("Received from server {0}:{1}: {2}".format(server[0], server[1], data))
+			logging.info("Received from server {0}:{1}: {2}".format(server[0], server[1], msg))
 
 
 	# Shutdown the server
@@ -162,21 +163,32 @@ class ndnMouseClientUDP():
 		else:
 			logging.error("Invalid click type: {0} {1}".format(click, updown))
 
+	# Handle keypress commands
+	def _handleKeypress(self, keypress, updown):
+		if updown == "U":	# UP
+			pyautogui.keyUp(keypress)
+		elif updown == "D":	# DOWN
+			pyautogui.keyDown(keypress)
+		elif updown == "F":	# FULL
+			pyautogui.press(keypress)
+		else:
+			logging.error("Invalid keypress type: {0} {1}".format(keypress, updown))
+
 
 	# Handle movement commands
 	# Format of commands:
 	#	"ABS 400,500"	(move to absolute pixel coordinate x=400, y=500)
 	#	"REL -75,25"	(move 75 left, 25 up relative to current pixel position)
-	def _handleMove(self, data, transition_time):
+	def _handleMove(self, data):
 		move_type = data[:3]
 		position = data[4:]
 		x, y = [int(i) for i in position.split(',')]
 
 		# Move mouse according to move_type (relative or absolute)
 		if (move_type == "REL"):
-			pyautogui.moveRel(x, y, transition_time)
+			pyautogui.moveRel(x, y, self.transition_time)
 		elif (move_type == "ABS"):
-			pyautogui.moveTo(x, y, transition_time)
+			pyautogui.moveTo(x, y, self.transition_time)
 
 
 ################################################################################
@@ -328,12 +340,13 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 			
 				# Handle different commands
 				if msg.startswith("REL") or msg.startswith("ABS"):
-					self._handleMove(msg, self.transition_time)
+					self._handleMove(msg)
 				elif msg.startswith("CLK"):
 					_, click, updown = msg.split('_')
 					self._handleClick(click, updown)
-				else:	# Got acknowledgement message from server, do nothing
-					continue
+				elif msg.startswith("KP"):
+					_, keypress, updown = msg.split('_')
+					self._handleKeypress(keypress, updown)
 
 
 	# Shutdown the server

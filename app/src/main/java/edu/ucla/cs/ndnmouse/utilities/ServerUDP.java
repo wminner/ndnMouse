@@ -1,6 +1,8 @@
 package edu.ucla.cs.ndnmouse.utilities;
 
 import android.graphics.Point;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.util.Log;
 
 import java.io.IOException;
@@ -33,7 +35,6 @@ public class ServerUDP implements Runnable, Server {
 
     /**
      * Constructor for server
-     *
      * @param activity of the caller (so we can get position points)
      * @param port number for server to listen on
      * @param sensitivity multiplier for scaling movement
@@ -132,25 +133,39 @@ public class ServerUDP implements Runnable, Server {
 
     /**
      * Send a click command to all current clients
-     *
-     * @param click identifier for the type of click
+     * @param command identifier for the type of click
      * @throws IOException for socket IO error
      */
-    public void executeClick(int click) throws IOException {
+    public void executeCommand(int command) throws IOException {
         for (WorkerThread client : mClientThreads.values()) {
             if (null != client.mReplyAddr && 0 != client.mReplyPort) {
-                byte[] reply = (mMouseActivity.getString(click)).getBytes();
+                byte[] reply = (mMouseActivity.getString(command)).getBytes();
                 DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, client.mReplyAddr, client.mReplyPort);
                 mSocket.send(replyPacket);
             }
         }
     }
 
+//    /**
+//     * Send a key press command to all current clients
+//     * @param keyPress type of key pressed
+//     * @throws IOException for socket IO error
+//     */
+//    public void executeKeyPress(int keyPress) throws IOException {
+//        // TODO key presses
+//        for (WorkerThread client : mClientThreads.values()) {
+//            if (null != client.mReplyAddr && 0 != client.mReplyPort) {
+//                byte[] reply = (mMouseActivity.getString(keyPress)).getBytes();
+//                DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, client.mReplyAddr, client.mReplyPort);
+//                mSocket.send(replyPacket);
+//            }
+//        }
+//    }
+
     /**
      * Get IP address from first non-localhost interface
      * Based on code from:
      * http://stackoverflow.com/questions/6064510/how-to-get-ip-address-of-the-device-from-code
-     *
      * @param useIPv4 true=return ipv4, false=return ipv6
      * @return address or empty string
      */
@@ -213,7 +228,6 @@ public class ServerUDP implements Runnable, Server {
 
         /**
          * Constructor
-         *
          * @param socket shared UDP socket from that parent is managing
          * @param packet initial packet that client uses to establish a connection with the server
          */
@@ -241,45 +255,8 @@ public class ServerUDP implements Runnable, Server {
             Log.d(TAG, "Stopped worker thread for client " + mReplyAddr + ":" + mReplyPort);
         }
 
-//        /**
-//         * Parses the initial GET packet and retrieves necessary info in order to respond correctly
-//         * NOTE: not currently needed as absolute movement is not supported
-//         *
-//         * @param initPacket initial packet that the client sends to the server to get position updates
-//         * @return boolean true if all parsing completed successfully, otherwise false
-//         */
-//        private boolean parseInitialRequest(DatagramPacket initPacket) {
-//            String data = new String(initPacket.getData());
-//            // Trim null bytes off end
-//            data = data.substring(0, data.indexOf('\0'));
-//
-//            Log.d(TAG, "Received request data: " + data);
-//
-//            if (data.startsWith(mMouseActivity.getString(R.string.protocol_ack_request))) {
-//                int start = data.indexOf(' ') + 1;
-//                int end = data.indexOf('\n', start);
-//                String[] monitorRes = data.substring(start, end).split("x");
-//                if (monitorRes.length == 2) {
-//                    mPCWidth = Integer.valueOf(monitorRes[0]);
-//                    mPCHeight = Integer.valueOf(monitorRes[1]);
-//                    // Log.d(TAG, "Client's monitor resolution is " + mPCWidth + "x" + mPCHeight);
-//
-//                    // Calculate ratios between server screen (phone) and client screen (pc)
-//                    mRatioWidth = (float) mPCWidth / mPhoneWidth;
-//                    mRatioHeight = (float) mPCHeight / mPhoneHeight;
-//
-//                    Log.d(TAG, "RatioWidth: " + mRatioWidth + ", RatioHeight: " + mRatioHeight);
-//                }
-//            } else {
-//                Log.e(TAG, "Failed to get client's resolution!");
-//                return false;
-//            }
-//            return true;
-//        }
-
         /**
          * Send acknowledgement to client that you received keep alive
-         *
          * @param openAck if this ack is replying to an OPEN message
          * @throws IOException for error during socket sending
          */

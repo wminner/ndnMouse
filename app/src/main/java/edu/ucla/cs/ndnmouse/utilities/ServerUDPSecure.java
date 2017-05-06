@@ -72,7 +72,7 @@ public class ServerUDPSecure extends ServerUDP {
                     // If existing client sent us a message...
                     if (mClientThreads.containsKey(packet.getAddress())) {
                         WorkerThreadSecure worker = mClientThreads.get(packet.getAddress());
-                        MousePacket mousePacket = new MousePacket(data, worker.mKey);
+                        MousePacket mousePacket = new MousePacket(data, worker.getKey());
 
                         // Use mouse packet to decrypt the message and get the seq num
                         String msg = mousePacket.getMessage();
@@ -146,14 +146,14 @@ public class ServerUDPSecure extends ServerUDP {
 
     /**
      * Send a click command to all current clients
-     * @param click identifier for the type of click
+     * @param command identifier for the type of click
      * @throws IOException for socket IO error
      */
     @Override
-    public void executeClick(int click) throws IOException {
+    public void executeCommand(int command) throws IOException {
         for (WorkerThreadSecure client : mClientThreads.values()) {
             if (null != client.mReplyAddr && 0 != client.mReplyPort)
-                client.executeClick(click);
+                client.executeCommand(command);
         }
     }
 
@@ -249,7 +249,7 @@ public class ServerUDPSecure extends ServerUDP {
          * @param click type
          * @throws IOException when sending through socket
          */
-        void executeClick(int click) throws IOException {
+        void executeCommand(int click) throws IOException {
             // Build reply message, create mouse packet from it, and send out encrypted reply
             byte[] msg = (mMouseActivity.getString(click)).getBytes();
             try {
@@ -277,6 +277,14 @@ public class ServerUDPSecure extends ServerUDP {
          */
         void setSeqNum(int newSeqNum) {
             mSeqNum = newSeqNum;
+        }
+
+        /**
+         * Get the worker's general encryption key
+         * @return key of worker
+         */
+        SecretKeySpec getKey() {
+            return mKey;
         }
     }
 }

@@ -14,6 +14,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.ViewFlipper;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -38,7 +39,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     private static int mTouchpadWidth;                          // Pixel width of the touchpad
     private static int mTouchpadHeight;                         // Pixel height of the touchpad
     private TextView mTouchpadTextView;                         // Touchpad TextView reference
+    private TextView mKeyboardStatusTextView;                   // Keyboard status TextView
+    private ViewFlipper mViewFlipper;                           // Holds mouse and keyboard views
     private Server mServer;                                     // Server/Producer object that will run in its own thread
+    private boolean mKeyboardShowing = false;                   // Tells if the keyboard view is showing or not
 
     // Relative and absolute movement variables
     private Point mAbsPos;                                      // Current absolute position on touchpad
@@ -72,6 +76,8 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         mUseNDN = intent.getBooleanExtra(getString(R.string.intent_extra_protocol), getResources().getBoolean(R.bool.use_ndn_protocol_default));
 
         mTouchpadTextView = (TextView) findViewById(R.id.tv_touchpad);
+        mViewFlipper = (ViewFlipper) findViewById(R.id.viewFlipper);
+
         // Find out upper-left coordinate, and width/height of touchpad box
         final TextView mTouchpadTextView = (TextView) findViewById(R.id.tv_touchpad);
         // Ensures that touchpad textview is initialized before these lines are executed
@@ -101,7 +107,8 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             }
         });
 
-        setupCallbacks();
+        setupMouseCallbacks();
+        setupKeyboardCallbacks();
         mAbsPos = new Point();
         mLastRelPos = new Point();
         mTouchDownPos = new Point();
@@ -130,8 +137,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             return true;
         }
         if (id == R.id.action_keyboard) {
-            Intent startKeyboardActivity = new Intent(this, KeyboardActivity.class);
-            startActivity(startKeyboardActivity);
+            toggleKeyboardView();
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -161,9 +167,9 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     }
 
     /**
-     * Helper function to setup each callback (for buttons and touchpad)
+     * Helper function to setup each mouse button/view callback
      */
-    private void setupCallbacks() {
+    private void setupMouseCallbacks() {
         // Left click touch down and touch up
         final Button leftClickButton = (Button) findViewById(R.id.b_left_click);
         leftClickButton.setOnTouchListener(new View.OnTouchListener() {
@@ -171,14 +177,14 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
                     try {
-                        mServer.executeClick(R.string.action_left_click_down);
+                        mServer.executeCommand(R.string.action_left_click_down);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                     displayClick(getString(R.string.action_left_click_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
                     try {
-                        mServer.executeClick(R.string.action_left_click_up);
+                        mServer.executeCommand(R.string.action_left_click_up);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -198,14 +204,14 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
                     try {
-                        mServer.executeClick(R.string.action_right_click_down);
+                        mServer.executeCommand(R.string.action_right_click_down);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                     displayClick(getString(R.string.action_right_click_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
                     try {
-                        mServer.executeClick(R.string.action_right_click_up);
+                        mServer.executeCommand(R.string.action_right_click_up);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -241,7 +247,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                             long now = System.currentTimeMillis();
                             if (now - mTouchDownTime <= mTapClickMillisThreshold) {
                                 try {
-                                    mServer.executeClick(R.string.action_left_click_full);
+                                    mServer.executeCommand(R.string.action_left_click_full);
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
@@ -257,6 +263,149 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
                 updateAbsolutePosition(x, y);
                 displayCoordinate();
+                return true;
+            }
+        });
+    }
+
+
+    /**
+     * Helper function to setup each keyboard button/view callback
+     */
+    private void setupKeyboardCallbacks() {
+        mKeyboardStatusTextView = (TextView) findViewById(R.id.tv_keyboard_status);
+
+        // Spacebar
+        final Button spacebarButton = (Button) findViewById(R.id.b_spacebar);
+        spacebarButton.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    try {
+                        mServer.executeCommand(R.string.action_keypress_spacebar_down);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    displayKeyPress(getString(R.string.action_keypress_spacebar_down));
+                } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    try {
+                        mServer.executeCommand(R.string.action_keypress_spacebar_up);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    displayKeyPress(getString(R.string.action_keypress_spacebar_up));
+
+                } else {
+                    return false;
+                }
+                return true;
+            }
+        });
+
+        // Up Arrow Key
+        final Button upArrowButton = (Button) findViewById(R.id.b_up_arrow);
+        upArrowButton.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    try {
+                        mServer.executeCommand(R.string.action_keypress_up_arrow_down);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    displayKeyPress(getString(R.string.action_keypress_up_arrow_down));
+                } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    try {
+                        mServer.executeCommand(R.string.action_keypress_up_arrow_up);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    displayKeyPress(getString(R.string.action_keypress_up_arrow_up));
+
+                } else {
+                    return false;
+                }
+                return true;
+            }
+        });
+
+        // Down Arrow Key
+        final Button downArrowButton = (Button) findViewById(R.id.b_down_arrow);
+        downArrowButton.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    try {
+                        mServer.executeCommand(R.string.action_keypress_down_arrow_down);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    displayKeyPress(getString(R.string.action_keypress_down_arrow_down));
+                } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    try {
+                        mServer.executeCommand(R.string.action_keypress_down_arrow_up);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    displayKeyPress(getString(R.string.action_keypress_down_arrow_up));
+
+                } else {
+                    return false;
+                }
+                return true;
+            }
+        });
+
+        // Left Arrow Key
+        final Button leftArrowButton = (Button) findViewById(R.id.b_left_arrow);
+        leftArrowButton.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    try {
+                        mServer.executeCommand(R.string.action_keypress_left_arrow_down);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    displayKeyPress(getString(R.string.action_keypress_left_arrow_down));
+                } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    try {
+                        mServer.executeCommand(R.string.action_keypress_left_arrow_up);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    displayKeyPress(getString(R.string.action_keypress_left_arrow_up));
+
+                } else {
+                    return false;
+                }
+                return true;
+            }
+        });
+
+        // Right Arrow Key
+        final Button rightArrowButton = (Button) findViewById(R.id.b_right_arrow);
+        rightArrowButton.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    try {
+                        mServer.executeCommand(R.string.action_keypress_right_arrow_down);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    displayKeyPress(getString(R.string.action_keypress_right_arrow_down));
+                } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    try {
+                        mServer.executeCommand(R.string.action_keypress_right_arrow_up);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    displayKeyPress(getString(R.string.action_keypress_right_arrow_up));
+
+                } else {
+                    return false;
+                }
                 return true;
             }
         });
@@ -286,10 +435,18 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
     /**
      * Function to display user's clicks on the touchpad (for debugging purposes)
-     * @param click either "left_click" or "right_click", found in res/values/strings.xml
+     * @param click type of click, found in strings.xml
      */
     private void displayClick(String click) {
         mTouchpadTextView.setText(getString(R.string.touchpad_label) + "\n(" + click + ")");
+    }
+
+    /**
+     * Function to display user's key press on the keyboard status textview (for debugging purposes)
+     * @param keyPress type of keypress, found in strings.xml
+     */
+    private void displayKeyPress(String keyPress) {
+        mKeyboardStatusTextView.setText(keyPress);
     }
 
     /**
@@ -352,5 +509,22 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         MessageDigest sha = MessageDigest.getInstance("SHA-256");
         // Copy only 128 bits (16 B) from digest to use for secret key
         return new SecretKeySpec(Arrays.copyOf(sha.digest(keyAndSalt), 16), "AES");
+    }
+
+    /**
+     * Shows/hides the keyboard view
+     */
+    private void toggleKeyboardView() {
+        mViewFlipper.showNext();
+
+        // Hide keyboard
+        if (mKeyboardShowing) {
+            setTitle(getString(R.string.mouse_label));
+            mKeyboardShowing = false;
+        // Show keyboard
+        } else {
+            setTitle(getString(R.string.keyboard_label));
+            mKeyboardShowing = true;
+        }
     }
 }

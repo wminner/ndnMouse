@@ -13,7 +13,7 @@ from Crypto.Cipher import AES
 import hashlib
 
 def main(argv):
-	LOG_FILENAME = "log_ndn.txt"
+	LOG_FILENAME = "log.txt"
 	logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO)
 	
 	# Prompt user for server address (port is always 6363 for NFD)
@@ -109,19 +109,21 @@ class ndnMouseClientNDN():
 	# Callback for when data is returned for an interest
 	def _onData(self, interest, data):
 		byte_string_data = bytes(data.getContent().buf())
-		clean_data = byte_string_data.decode()
+		msg = byte_string_data.decode()
 		
-		# Check and handle click
-		if clean_data.startswith("CLK"):
-			_, click, updown = clean_data.split('_')
-			self.handleClick(click, updown)
-		# Otherwise assume move command
-		else:
-			self.handleMove(clean_data)
+		# Handle different commands
+		if msg.startswith("REL") or msg.startswith("ABS"):
+			self._handleMove(msg)
+		elif msg.startswith("CLK"):
+			_, click, updown = msg.split('_')
+			self._handleClick(click, updown)
+		elif msg.startswith("KP"):
+			_, keypress, updown = msg.split('_')
+			self._handleKeypress(keypress, updown)
 
 		# Resend interest to get move/click data
 		self.face.expressInterest(interest, self._onData, self._onTimeout)
-		logging.debug("Got returned data from {0}: {1}".format(data.getName().toUri(), clean_data))
+		logging.info("Got returned data from {0}: {1}".format(data.getName().toUri(), msg))
 		
 
 	# Callback for when interest times out
@@ -135,7 +137,7 @@ class ndnMouseClientNDN():
 	############################################################################
 
 	# Handle click commands
-	def handleClick(self, click, updown):
+	def _handleClick(self, click, updown):
 		if updown == "U":	# Up
 			pyautogui.mouseUp(button=click)
 		elif updown == "D":	# Down
@@ -146,11 +148,23 @@ class ndnMouseClientNDN():
 			logging.error("Invalid click type: {0} {1}".format(click, updown))
 
 
+	# Handle keypress commands
+	def _handleKeypress(self, keypress, updown):
+		if updown == "U":	# UP
+			pyautogui.keyUp(keypress)
+		elif updown == "D":	# DOWN
+			pyautogui.keyDown(keypress)
+		elif updown == "F":	# FULL
+			pyautogui.press(keypress)
+		else:
+			logging.error("Invalid keypress type: {0} {1}".format(keypress, updown))
+
+
 	# Handle movement commands
 	# Format of commands:
 	#	"ABS 400,500"	(move to absolute pixel coordinate x=400, y=500)
 	#	"REL -75,25"	(move 75 left, 25 up relative to current pixel position)
-	def handleMove(self, data):
+	def _handleMove(self, data):
 		move_type = data[:3]
 		position = data[4:]
 		x, y = [int(i) for i in position.split(',')]
@@ -240,13 +254,15 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 				msg = decrypted[self.seq_num_bytes:].decode()
 				self.seq_num = server_seq_num
 
-				# Check and handle click
-				if msg.startswith("CLK"):
+				# Handle different commands
+				if msg.startswith("REL") or msg.startswith("ABS"):
+					self._handleMove(msg)
+				elif msg.startswith("CLK"):
 					_, click, updown = msg.split('_')
-					self.handleClick(click, updown)
-				# Check and handle move command
-				elif msg.startswith("REL"):
-					self.handleMove(msg)
+					self._handleClick(click, updown)
+				elif msg.startswith("KP"):
+					_, keypress, updown = msg.split('_')
+					self._handleKeypress(keypress, updown)
 				else:
 					logging.error("Bad response data received. Wrong password?")
 

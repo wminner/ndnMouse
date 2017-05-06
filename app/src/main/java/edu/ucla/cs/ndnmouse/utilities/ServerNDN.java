@@ -4,6 +4,7 @@ import android.graphics.Point;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.os.Parcel;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -32,7 +33,7 @@ import edu.ucla.cs.ndnmouse.R;
 public class ServerNDN implements Runnable, Server {
 
     private static final String TAG = ServerNDN.class.getSimpleName();
-    MouseActivity mMouseActivity;                   // Reference to calling activity
+    MouseActivity mMouseActivity;                           // Reference to calling activity
 
     Face mFace;                                             // Reference to the NDN face we will use to serve interests
     // private final int mPort = 6363;                      // Default NFD port
@@ -86,7 +87,6 @@ public class ServerNDN implements Runnable, Server {
 
             if (!mPrefixRegisterError) {
                 while (mServerIsRunning) {
-                    // TODO does this require thread synchronization? should not send interests at the same time
                     mFace.processEvents();
                     Thread.sleep(mUpdateIntervalMillis);
                 }
@@ -107,7 +107,6 @@ public class ServerNDN implements Runnable, Server {
 
     /**
      * Setup Face, its keychain and certificate
-     *
      * @throws SecurityException for KeyChain getDefaultCertificate
      */
     private void setupFace() throws SecurityException {
@@ -132,7 +131,6 @@ public class ServerNDN implements Runnable, Server {
 
     /**
      * Setup prefixes that this server will respond to
-     *
      * @throws IOException for putting data at Face
      * @throws SecurityException for Face registration
      */
@@ -222,18 +220,25 @@ public class ServerNDN implements Runnable, Server {
     }
 
     /**
-     * Send a click command to an existing client
-     *
+     * Send a click command to all current clients
      * @param click identifier for the type of click
-     * @throws IOException for socket IO error
+     * @throws IOException for face IO error
      */
-    public void executeClick(int click) throws IOException {
+    public void executeCommand(int click) throws IOException {
         mClickQueue.add(click);
     }
 
+//    /**
+//     * Send a key press command to all current clients
+//     * @param keyPress type of key pressed
+//     * @throws IOException for face IO error
+//     */
+//    public void executeKeyPress(int keyPress) throws IOException {
+//        // TODO key presses
+//    }
+
     /**
      * This is called whenever settings are updated, so the server can change its behavior on the fly
-     *
      * @param key of the setting being updated
      * @param value of the updated setting (generic type)
      */

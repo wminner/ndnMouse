@@ -34,6 +34,24 @@
     <string name="action_right_click_up" translatable="false">CLK_right_U</string>
     <string name="action_left_click_full" translatable="false">CLK_left_F</string>
     <string name="action_keyboard">Keyboard</string>
+    <string name="intent_extra_server" translatable="false">EXTRA_SERVER</string>
+
+    <!--Keyboard Activity-->
+    <string name="keyboard_up_label" translatable="false">▲</string>
+    <string name="keyboard_down_label" translatable="false">▼</string>
+    <string name="keyboard_left_label" translatable="false">◀</string>
+    <string name="keyboard_right_label" translatable="false">▶</string>
+    <string name="keyboard_space_label">SPACEBAR</string>
+    <string name="action_keypress_up_arrow_down" translatable="false">KP_up_D</string>
+    <string name="action_keypress_up_arrow_up" translatable="false">KP_up_U</string>
+    <string name="action_keypress_down_arrow_down" translatable="false">KP_down_D</string>
+    <string name="action_keypress_down_arrow_up" translatable="false">KP_down_U</string>
+    <string name="action_keypress_left_arrow_down" translatable="false">KP_left_D</string>
+    <string name="action_keypress_left_arrow_up" translatable="false">KP_left_U</string>
+    <string name="action_keypress_right_arrow_down" translatable="false">KP_right_D</string>
+    <string name="action_keypress_right_arrow_up" translatable="false">KP_right_U</string>
+    <string name="action_keypress_spacebar_down" translatable="false">KP_space_D</string>
+    <string name="action_keypress_spacebar_up" translatable="false">KP_space_U</string>
 
     <!--Settings Activity-->
     <string name="pref_tap_to_left_click_label">Tap to Left Click</string>
