@@ -55,9 +55,9 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 
 # Screenshots
 
-<img src="./screenshots/start.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="./screenshots/touchpad.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="./screenshots/keyboard.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="./screenshots/settings.png" width="205"/>
-<img src="./screenshots/client1.PNG" width="430"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="./screenshots/client2.PNG" width="430"/>
-<img src="./screenshots/client3.PNG" width="430"/>
+<img src="docs/screenshots/start.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/touchpad.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/keyboard.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/settings.png" width="205"/>
+<img src="docs/screenshots/client1.PNG" width="430"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/client2.PNG" width="430"/>
+<img src="docs/screenshots/client3.PNG" width="430"/>
 
 # License
 See [here](./LICENSE)
