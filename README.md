@@ -47,6 +47,7 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 
 ### Running
 
+1. Attach your phone and PC to the same network or wireless access point. WiFi hotspot also works.
 1. Make sure NFD is started on both your phone (the server/producer) and your PC (the client/consumer). Use the NFD app to start it on Android. On PC, use `nfd-start`.
 1. On your phone, start the server within ndnMouse (you can choose NDN or UDP protocol).
 1. On your PC, execute the matching-protocol Python script in the [pc_client](./pc_client) directory.

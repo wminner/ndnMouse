@@ -1,0 +1,70 @@
+html {
+    -webkit-font-smoothing: antialiased;
+}
+
+body {
+	background-image: url(images/bg.png);
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.06);
+    color: #fff;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    margin: 0 auto;
+    max-width: 800px;
+    padding: 30px;
+    line-height: 1.5;
+}
+
+a {
+    color: #0083e8;
+}
+
+h1 {
+    font-size: 48px;
+    line-height: 1;
+}
+
+h2 {
+    font-size: 28px;
+    line-height: 1;
+}
+
+h3 {
+    font-size: 22px;
+}
+
+.android_screenshot {
+    width: 205px;
+    border: 1px solid #000;
+    float: left;
+    margin: 0px 20px 20px 0px;
+}
+
+.pc_screenshot {
+    width: 430px;
+    border: 1px solid #000;
+    float: left;
+    margin: 0px 20px 20px 0px;
+}
+
+#content {
+	background: rgba(20, 20, 20, .90);
+    padding: 10px 50px 30px 50px;
+}
+
+@-webkit-keyframes colorize {
+    0% {
+        -webkit-filter: grayscale(100%);
+    }
+    100% {
+        -webkit-filter: grayscale(0%);
+    }
+}
+
+@keyframes colorize {
+    0% {
+        filter: grayscale(100%);
+    }
+    100% {
+        filter: grayscale(0%);
+    }
+}
