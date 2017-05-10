@@ -1,9 +1,7 @@
 package edu.ucla.cs.ndnmouse;
 
-import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
@@ -25,7 +23,7 @@ public class KeyboardActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_keyboard);
 
-        mKeyboardStatusTextView = (TextView) findViewById(R.id.tv_keyboard_status);
+        mKeyboardStatusTextView = (TextView) findViewById(R.id.tv_keyboard_touchpad);
         setupCallbacks();
     }
 

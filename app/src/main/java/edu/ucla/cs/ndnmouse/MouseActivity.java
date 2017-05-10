@@ -39,7 +39,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     private static int mTouchpadWidth;                          // Pixel width of the touchpad
     private static int mTouchpadHeight;                         // Pixel height of the touchpad
     private TextView mTouchpadTextView;                         // Touchpad TextView reference
-    private TextView mKeyboardStatusTextView;                   // Keyboard status TextView
+    private TextView mKeyboardTouchpadTextView;                   // Keyboard status TextView
     private ViewFlipper mViewFlipper;                           // Holds mouse and keyboard views
     private Server mServer;                                     // Server/Producer object that will run in its own thread
     private boolean mKeyboardShowing = false;                   // Tells if the keyboard view is showing or not
@@ -76,6 +76,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         mUseNDN = intent.getBooleanExtra(getString(R.string.intent_extra_protocol), getResources().getBoolean(R.bool.use_ndn_protocol_default));
 
         mTouchpadTextView = (TextView) findViewById(R.id.tv_touchpad);
+        mKeyboardTouchpadTextView = (TextView) findViewById(R.id.tv_keyboard_touchpad);
         mViewFlipper = (ViewFlipper) findViewById(R.id.viewFlipper);
 
         // Find out upper-left coordinate, and width/height of touchpad box
@@ -224,48 +225,49 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         });
 
         // Touchpad
-        mTouchpadTextView.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                int x = (int) event.getX();
-                int y = (int) event.getY();
-
-                switch (event.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
-                        mTouchDownTime = System.currentTimeMillis();
-                        mTouchDownPos.set(x, y);
-                        mTouchDown = true;
-
-                        Log.d(TAG, String.format("ACTION_DOWN: %d %d", x, y));
-                        break;
-                    case MotionEvent.ACTION_MOVE:
-                        // Log.d(TAG, String.format("ACTION_MOVE: %d %d", x, y));
-                        break;
-                    case MotionEvent.ACTION_UP:
-                        // Check if user tapped (for tap-to-click)
-                        if (mTapToLeftClick && ((Math.abs(x - mTouchDownPos.x) <= mTapClickPixelThreshold) && (Math.abs(y - mTouchDownPos.y) <= mTapClickPixelThreshold))) {
-                            long now = System.currentTimeMillis();
-                            if (now - mTouchDownTime <= mTapClickMillisThreshold) {
-                                try {
-                                    mServer.executeCommand(R.string.action_left_click_full);
-                                } catch (IOException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                        }
-                        mTouchDown = false;
-                        // Need to buffer an absolute position next time relative difference needs to be calculated
-                        mBufferAbsPos = true;
-
-                        Log.d(TAG, String.format("ACTION_UP: %d %d", x, y));
-                        break;
-                }
-
-                updateAbsolutePosition(x, y);
-                displayCoordinate();
-                return true;
-            }
-        });
+        mTouchpadTextView.setOnTouchListener(new TouchpadListener());
+//        mTouchpadTextView.setOnTouchListener(new View.OnTouchListener() {
+//            @Override
+//            public boolean onTouch(View v, MotionEvent event) {
+//                int x = (int) event.getX();
+//                int y = (int) event.getY();
+//
+//                switch (event.getAction()) {
+//                    case MotionEvent.ACTION_DOWN:
+//                        mTouchDownTime = System.currentTimeMillis();
+//                        mTouchDownPos.set(x, y);
+//                        mTouchDown = true;
+//
+//                        Log.d(TAG, String.format("ACTION_DOWN: %d %d", x, y));
+//                        break;
+//                    case MotionEvent.ACTION_MOVE:
+//                        // Log.d(TAG, String.format("ACTION_MOVE: %d %d", x, y));
+//                        break;
+//                    case MotionEvent.ACTION_UP:
+//                        // Check if user tapped (for tap-to-click)
+//                        if (mTapToLeftClick && ((Math.abs(x - mTouchDownPos.x) <= mTapClickPixelThreshold) && (Math.abs(y - mTouchDownPos.y) <= mTapClickPixelThreshold))) {
+//                            long now = System.currentTimeMillis();
+//                            if (now - mTouchDownTime <= mTapClickMillisThreshold) {
+//                                try {
+//                                    mServer.executeCommand(R.string.action_left_click_full);
+//                                } catch (IOException e) {
+//                                    e.printStackTrace();
+//                                }
+//                            }
+//                        }
+//                        mTouchDown = false;
+//                        // Need to buffer an absolute position next time relative difference needs to be calculated
+//                        mBufferAbsPos = true;
+//
+//                        Log.d(TAG, String.format("ACTION_UP: %d %d", x, y));
+//                        break;
+//                }
+//
+//                updateAbsolutePosition(x, y);
+//                displayCoordinate();
+//                return true;
+//            }
+//        });
     }
 
 
@@ -273,8 +275,6 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
      * Helper function to setup each keyboard button/view callback
      */
     private void setupKeyboardCallbacks() {
-        mKeyboardStatusTextView = (TextView) findViewById(R.id.tv_keyboard_status);
-
         // Spacebar
         final Button spacebarButton = (Button) findViewById(R.id.b_spacebar);
         spacebarButton.setOnTouchListener(new View.OnTouchListener() {
@@ -409,6 +409,51 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                 return true;
             }
         });
+
+        mKeyboardTouchpadTextView.setOnTouchListener(new TouchpadListener());
+    }
+
+    private class TouchpadListener implements View.OnTouchListener {
+        @Override
+        public boolean onTouch(View v, MotionEvent event) {
+            int x = (int) event.getX();
+            int y = (int) event.getY();
+
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    mTouchDownTime = System.currentTimeMillis();
+                    mTouchDownPos.set(x, y);
+                    mTouchDown = true;
+
+                    Log.d(TAG, String.format("ACTION_DOWN: %d %d", x, y));
+                    break;
+                case MotionEvent.ACTION_MOVE:
+                    // Log.d(TAG, String.format("ACTION_MOVE: %d %d", x, y));
+                    break;
+                case MotionEvent.ACTION_UP:
+                    // Check if user tapped (for tap-to-click)
+                    if (mTapToLeftClick && ((Math.abs(x - mTouchDownPos.x) <= mTapClickPixelThreshold) && (Math.abs(y - mTouchDownPos.y) <= mTapClickPixelThreshold))) {
+                        long now = System.currentTimeMillis();
+                        if (now - mTouchDownTime <= mTapClickMillisThreshold) {
+                            try {
+                                mServer.executeCommand(R.string.action_left_click_full);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                    mTouchDown = false;
+                    // Need to buffer an absolute position next time relative difference needs to be calculated
+                    mBufferAbsPos = true;
+
+                    Log.d(TAG, String.format("ACTION_UP: %d %d", x, y));
+                    break;
+            }
+
+            updateAbsolutePosition(x, y);
+            displayCoordinate((TextView) v);
+            return true;
+        }
     }
 
     /**
@@ -427,10 +472,11 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
     /**
      * Function to display x, y coordinate on the touchpad (for debugging purposes)
+     * @param textView touchpad for which the coordinate should be displayed
      */
-    private void displayCoordinate() {
+    private void displayCoordinate(TextView textView) {
         String newCoord = getString(R.string.touchpad_label) + "\n(" + mAbsPos.x + ", " + mAbsPos.y + ")";
-        mTouchpadTextView.setText(newCoord);
+        textView.setText(newCoord);
     }
 
     /**
@@ -446,7 +492,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
      * @param keyPress type of keypress, found in strings.xml
      */
     private void displayKeyPress(String keyPress) {
-        mKeyboardStatusTextView.setText(keyPress);
+        mKeyboardTouchpadTextView.setText(getString(R.string.touchpad_label) + "\n(" + keyPress + ")");
     }
 
     /**
