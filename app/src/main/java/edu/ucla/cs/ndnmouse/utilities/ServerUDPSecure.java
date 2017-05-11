@@ -32,6 +32,7 @@ public class ServerUDPSecure extends ServerUDP {
     private SecretKeySpec mOpenKey; // Hashed user password to be used for encryption on the opening message only
     private HashMap<InetAddress, WorkerThreadSecure> mClientThreads;    // Holds all active worker threads that are servicing clients
     private static final int mWorkerDropCounterTheshold = 3;
+    private static final int mMaxSeqNum = Integer.MAX_VALUE;
 
     /**
      * Constructor for server
@@ -142,6 +143,18 @@ public class ServerUDPSecure extends ServerUDP {
         } catch (IOException e) {
             Log.e(TAG, "Web server was interrupted and is now closed.", e);
         }
+
+        // Shutdown stuff
+        // Stop all client threads
+        for (WorkerThread client : mClientThreads.values()) {
+            client.stop();
+        }
+        mClientThreads.clear();
+        // Close the shared socket
+        if (null != mSocket) {
+            mSocket.close();
+            mSocket = null;
+        }
     }
 
     /**
@@ -196,7 +209,7 @@ public class ServerUDPSecure extends ServerUDP {
 
             try {
                 // Create mouse packet from message, and send out encrypted reply
-                MousePacket mousePacket = new MousePacket(msg, ++mSeqNum, mKey);
+                MousePacket mousePacket = new MousePacket(msg, getNextSeqNum(), mKey);
                 byte[] encryptedReply = mousePacket.getEncryptedPacket();
                 DatagramPacket replyPacket = new DatagramPacket(encryptedReply, encryptedReply.length, mReplyAddr, mReplyPort);
                 mSocket.send(replyPacket);
@@ -227,7 +240,7 @@ public class ServerUDPSecure extends ServerUDP {
                     // Build reply message, create mouse packet from it, and send out encrypted reply
                     byte[] msg = (moveType + " " + scaledX + "," + scaledY).getBytes();
                     try {
-                        MousePacket mousePacket = new MousePacket(msg, ++mSeqNum, mKey);
+                        MousePacket mousePacket = new MousePacket(msg, getNextSeqNum(), mKey);
                         byte[] encryptedReply = mousePacket.getEncryptedPacket();
                         Log.d(TAG, "Sending update: " + Arrays.toString(encryptedReply));
                         DatagramPacket replyPacket = new DatagramPacket(encryptedReply, encryptedReply.length, mReplyAddr, mReplyPort);
@@ -253,7 +266,7 @@ public class ServerUDPSecure extends ServerUDP {
             // Build reply message, create mouse packet from it, and send out encrypted reply
             byte[] msg = (mMouseActivity.getString(click)).getBytes();
             try {
-                MousePacket mousePacket = new MousePacket(msg, ++mSeqNum, mKey);
+                MousePacket mousePacket = new MousePacket(msg, getNextSeqNum(), mKey);
                 byte[] encryptedReply = mousePacket.getEncryptedPacket();
                 DatagramPacket replyPacket = new DatagramPacket(encryptedReply, encryptedReply.length, mReplyAddr, mReplyPort);
                 mSocket.send(replyPacket);
@@ -277,6 +290,19 @@ public class ServerUDPSecure extends ServerUDP {
          */
         void setSeqNum(int newSeqNum) {
             mSeqNum = newSeqNum;
+        }
+
+        /**
+         * Get the next unused seq number. Handle if it overflows.
+         * @return next unused seq number for server
+         */
+        private int getNextSeqNum() {
+            if (mSeqNum == mMaxSeqNum) {
+                mSeqNum = 0;
+            } else {
+                mSeqNum++;
+            }
+            return mSeqNum;
         }
 
         /**

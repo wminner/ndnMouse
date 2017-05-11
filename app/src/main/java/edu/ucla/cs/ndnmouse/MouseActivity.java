@@ -3,6 +3,7 @@ package edu.ucla.cs.ndnmouse;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Point;
+import android.graphics.drawable.Drawable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.preference.PreferenceManager;
@@ -39,7 +40,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     private static int mTouchpadWidth;                          // Pixel width of the touchpad
     private static int mTouchpadHeight;                         // Pixel height of the touchpad
     private TextView mTouchpadTextView;                         // Touchpad TextView reference
-    private TextView mKeyboardTouchpadTextView;                   // Keyboard status TextView
+    private TextView mKeyboardTouchpadTextView;                 // Keyboard status TextView
     private ViewFlipper mViewFlipper;                           // Holds mouse and keyboard views
     private Server mServer;                                     // Server/Producer object that will run in its own thread
     private boolean mKeyboardShowing = false;                   // Tells if the keyboard view is showing or not
@@ -126,6 +127,9 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.mouse_menu, menu);
+        if (mKeyboardShowing) {
+            menu.findItem(R.id.action_toggle_keyboard).setIcon(R.drawable.mouse_pointer_icon);
+        }
         return true;
     }
 
@@ -137,7 +141,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             startActivity(startSettingsActivity);
             return true;
         }
-        if (id == R.id.action_keyboard) {
+        if (id == R.id.action_toggle_keyboard) {
             toggleKeyboardView();
             return true;
         }
@@ -226,48 +230,6 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
         // Touchpad
         mTouchpadTextView.setOnTouchListener(new TouchpadListener());
-//        mTouchpadTextView.setOnTouchListener(new View.OnTouchListener() {
-//            @Override
-//            public boolean onTouch(View v, MotionEvent event) {
-//                int x = (int) event.getX();
-//                int y = (int) event.getY();
-//
-//                switch (event.getAction()) {
-//                    case MotionEvent.ACTION_DOWN:
-//                        mTouchDownTime = System.currentTimeMillis();
-//                        mTouchDownPos.set(x, y);
-//                        mTouchDown = true;
-//
-//                        Log.d(TAG, String.format("ACTION_DOWN: %d %d", x, y));
-//                        break;
-//                    case MotionEvent.ACTION_MOVE:
-//                        // Log.d(TAG, String.format("ACTION_MOVE: %d %d", x, y));
-//                        break;
-//                    case MotionEvent.ACTION_UP:
-//                        // Check if user tapped (for tap-to-click)
-//                        if (mTapToLeftClick && ((Math.abs(x - mTouchDownPos.x) <= mTapClickPixelThreshold) && (Math.abs(y - mTouchDownPos.y) <= mTapClickPixelThreshold))) {
-//                            long now = System.currentTimeMillis();
-//                            if (now - mTouchDownTime <= mTapClickMillisThreshold) {
-//                                try {
-//                                    mServer.executeCommand(R.string.action_left_click_full);
-//                                } catch (IOException e) {
-//                                    e.printStackTrace();
-//                                }
-//                            }
-//                        }
-//                        mTouchDown = false;
-//                        // Need to buffer an absolute position next time relative difference needs to be calculated
-//                        mBufferAbsPos = true;
-//
-//                        Log.d(TAG, String.format("ACTION_UP: %d %d", x, y));
-//                        break;
-//                }
-//
-//                updateAbsolutePosition(x, y);
-//                displayCoordinate();
-//                return true;
-//            }
-//        });
     }
 
 
@@ -562,6 +524,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
      */
     private void toggleKeyboardView() {
         mViewFlipper.showNext();
+        invalidateOptionsMenu();
 
         // Hide keyboard
         if (mKeyboardShowing) {

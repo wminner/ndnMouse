@@ -35,7 +35,7 @@ def main(argv):
 		server.run()
 	except KeyboardInterrupt:
 		print("\nExiting...")
-		logging.info("\nExiting...")
+		logging.info("Exiting...")
 	finally:
 		server.shutdown()
 
@@ -126,6 +126,7 @@ class ndnMouseClientUDP():
 				continue
 
 			msg = data.decode()
+			logging.info("Received from server {0}:{1}: {2}".format(server[0], server[1], msg))
 			
 			# Handle different commands
 			if msg.startswith("REL") or msg.startswith("ABS"):
@@ -136,8 +137,8 @@ class ndnMouseClientUDP():
 			elif msg.startswith("KP"):
 				_, keypress, updown = msg.split('_')
 				self._handleKeypress(keypress, updown)
-
-			logging.info("Received from server {0}:{1}: {2}".format(server[0], server[1], msg))
+			else:
+				logging.error("Bad command received. Password on server?")
 
 
 	# Shutdown the server
@@ -210,6 +211,7 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 	iv_bytes = 16
 	key_bytes = 16
 	aes_block_size = 16
+	max_seq_num = 2147483647
 
 
 	def __init__(self, addr, port, password):
@@ -263,7 +265,7 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 		got_timeout = True
 		while got_timeout:
 			# Always increment seq num before sending any message (except opener msg)
-			self.seq_num += 1
+			self.seq_num = self._getNextSeqNum()
 			iv = self._getNewIV()
 			
 			# Create message from IV, seq num, and protocol msg
@@ -284,7 +286,7 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 				server_seq_num = intFromBytes(decrypted[:self.seq_num_bytes])
 				# logging.info("server seq num = {0}, client seq num = {1}".format(server_seq_num, self.seq_num))
 				# If decrypted response has a valid seq num, and has the correct response...
-				if server_seq_num > self.seq_num and decrypted[self.seq_num_bytes:].startswith(b"BEAT"):
+				if (server_seq_num > self.seq_num or self.seq_num == self.max_seq_num) and decrypted[self.seq_num_bytes:].startswith(b"BEAT"):
 					# Update our seq num to synchronize with server
 					self.seq_num = server_seq_num
 					# Reset refresh attempts
@@ -334,7 +336,7 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 
 			server_seq_num = intFromBytes(decrypted[:self.seq_num_bytes])
 			# If decrypted message has a valid seq num...
-			if server_seq_num > self.seq_num:
+			if server_seq_num > self.seq_num or self.seq_num == self.max_seq_num:
 				self.seq_num = server_seq_num
 				msg = decrypted[self.seq_num_bytes:].decode()
 			
@@ -347,11 +349,13 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 				elif msg.startswith("KP"):
 					_, keypress, updown = msg.split('_')
 					self._handleKeypress(keypress, updown)
+				else:
+					logging.error("Bad command received. Wrong password?")
 
 
 	# Shutdown the server
 	def shutdown(self):
-		self.seq_num += 1
+		self.seq_num = self._getNextSeqNum()
 		iv = self._getNewIV()
 
 		message = intToBytes(self.seq_num) + b"CLOSE"
@@ -387,6 +391,13 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 	# Get a new random initialization vector (IV)
 	def _getNewIV(self):		
 		return self.rndfile.read(self.iv_bytes)
+
+	# Get next unused seq num; handle if overflow occurs
+	def _getNextSeqNum(self):
+		if self.seq_num == self.max_seq_num:
+			return 0
+		else:
+			return self.seq_num + 1
 
 	# Hash password and salt (if provided) into key
 	# 	password: string

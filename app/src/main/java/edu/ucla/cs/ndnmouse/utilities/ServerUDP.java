@@ -60,23 +60,8 @@ public class ServerUDP implements Runnable, Server {
      * Stops server thread, cleans up all the worker threads, and closes the socket
      */
     public void stop() {
-        try {
-            mServerIsRunning = false;
-            // Stop all client threads
-            for (WorkerThread client : mClientThreads.values()) {
-                client.stop();
-            }
-            mClientThreads.clear();
-
-            // Close the shared socket
-            if (null != mSocket) {
-                mSocket.close();
-                mSocket = null;
-            }
-            Log.d(TAG, "Stopped UDP server...");
-        } catch (Exception e) {
-            Log.e(TAG, "Error closing the server socket.", e);
-        }
+        mServerIsRunning = false;
+        Log.d(TAG, "Stopped UDP server...");
     }
 
     @Override
@@ -95,7 +80,12 @@ public class ServerUDP implements Runnable, Server {
 
                 // Trim null bytes off end
                 String msg = new String(data);
-                msg = msg.substring(0, msg.indexOf('\0'));
+                try {
+                    msg = msg.substring(0, msg.indexOf('\0'));
+                } catch (StringIndexOutOfBoundsException e) {
+                    Log.e(TAG, "Invalid message: Bad null byte padding!");
+                    continue;
+                }
 
                 // If new client...
                 if (msg.startsWith(mMouseActivity.getString(R.string.protocol_opening_request))) {
@@ -128,6 +118,18 @@ public class ServerUDP implements Runnable, Server {
             }
         } catch (IOException e) {
             Log.e(TAG, "Web server was interrupted and is now closed.", e);
+        }
+
+        // Shutdown stuff
+        // Stop all client threads
+        for (WorkerThread client : mClientThreads.values()) {
+            client.stop();
+        }
+        mClientThreads.clear();
+        // Close the shared socket
+        if (null != mSocket) {
+            mSocket.close();
+            mSocket = null;
         }
     }
 

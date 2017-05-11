@@ -84,6 +84,8 @@
     <!--ServerNDN-->
     <string name="ndn_prefix_mouse_move" translatable="false">/ndnmouse/move</string>
     <string name="ndn_prefix_mouse_click" translatable="false">/ndnmouse/click</string>
+    <string name="ndn_prefix_update_seq" translatable="false">/ndnmouse/seq</string>
+    <string name="ndn_update_seq_reply" translatable="false">ACK</string>
     <string name="ndn_prefix_identity" translatable="false">/ndnmouse/identity</string>
 
 </resources>

@@ -39,18 +39,16 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 
 1. Install NFD on your [Android phone](https://play.google.com/store/apps/details?id=net.named_data.nfd) and the [PC](http://named-data.net/doc/NFD/current/INSTALL.html) on which you want to control the mouse.
 1. Compile and install the app using Android Studio on your Android phone.
-1. On your PC, install Python3, PyAutoGUI, and pycrypto
-	1. Python3: `sudo apt-get install python3`
-	1. pip3 (to help install Python libraries): `sudo apt-get install python3-pip`
-	1. PyAutoGUI: `sudo pip3 install pyautogui`
-	1. pycrypto: `sudo pip3 install pycrypto`
+1. On your PC, install Python3 and pip3. Then install the two Python libraries: PyAutoGUI and pycrypto.
+	1. Python3 and pip3 (to help install Python libraries): `sudo apt-get install python3 python3-pip`
+	1. PyAutoGUI and pycrypto: `sudo pip3 install pyautogui pycrypto`
 
 ### Running
 
 1. Attach your phone and PC to the same network or wireless access point. WiFi hotspot also works.
 1. Make sure NFD is started on both your phone (the server/producer) and your PC (the client/consumer). Use the NFD app to start it on Android. On PC, use `nfd-start`.
 1. On your phone, start the server within ndnMouse (you can choose NDN or UDP protocol).
-1. On your PC, execute the matching-protocol Python script in the [pc_client](./pc_client) directory.
+1. On your PC, execute the matching-protocol Python script in the [pc_client](./pc_client) directory. Connect to the IP address that was specified on your phone's ndnMouse start screen. Password is optional, but provides encryption when used (otherwise cleartext).
 1. Control :mouse::exclamation:
 
 # Screenshots

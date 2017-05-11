@@ -35,6 +35,7 @@ public class ServerNDNSecure extends ServerNDN {
     private String mPassword;
     private SecretKeySpec mKey;
     private int mSeqNum;
+    private static final int mMaxSeqNum = Integer.MAX_VALUE;
 
     /**
      * Constructor for server
@@ -90,7 +91,7 @@ public class ServerNDNSecure extends ServerNDN {
 
                         try {
                             // Encrypt reply
-                            MousePacket mousePacket = new MousePacket(msg, ++mSeqNum, mKey);
+                            MousePacket mousePacket = new MousePacket(msg, getNextSeqNum(), mKey);
                             byte[] encryptedReply = mousePacket.getEncryptedPacket();
 
                             // Set content of data
@@ -137,7 +138,7 @@ public class ServerNDNSecure extends ServerNDN {
 
                         try {
                             // Encrypt reply
-                            MousePacket mousePacket = new MousePacket(msg, ++mSeqNum, mKey);
+                            MousePacket mousePacket = new MousePacket(msg, getNextSeqNum(), mKey);
                             byte[] encryptedReply = mousePacket.getEncryptedPacket();
 
                             // Set content of data
@@ -163,5 +164,71 @@ public class ServerNDNSecure extends ServerNDN {
                     }
                 });
         mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_mouse_click), prefixId);
+
+        // Prefix for seq num updates (special interest for cases of desync only)
+        Name prefix_update_seq = new Name(mMouseActivity.getString(R.string.ndn_prefix_update_seq));
+        prefixId = mFace.registerPrefix(prefix_update_seq,
+                new OnInterestCallback() {
+                    @Override
+                    public void onInterest(Name prefix, Interest interest, Face face, long interestFilterId, InterestFilter filter) {
+
+                        Log.d(TAG, "Got interest: " + interest.getName());
+
+                        try {
+                            // Sync the server's seq num using last interest component (if larger than current seq num)
+                            int syncSeqNum = Integer.valueOf(interest.getName().getSubName(-1).toUri().substring(1));
+                            mSeqNum = Math.max(syncSeqNum, mSeqNum);
+                            Log.d(TAG, "Setting server seq num to " + mSeqNum);
+
+                            Data replyData = new Data(interest.getName());
+                            replyData.getMetaInfo().setFreshnessPeriod(mFreshnessPeriod);
+
+                            // Build reply string and set data contents
+                            byte[] msg = (mMouseActivity.getString(R.string.ndn_update_seq_reply)).getBytes();
+                            // Log.d(TAG, "Sending update seq reply: " + replyString);
+
+                            // Encrypt reply
+                            MousePacket mousePacket = new MousePacket(msg, getNextSeqNum(), mKey);
+                            byte[] encryptedReply = mousePacket.getEncryptedPacket();
+
+                            // Set content of data
+                            replyData.setContent(new Blob(encryptedReply));
+
+                            // Send data out face
+                            face.putData(replyData);
+
+                        } catch (NumberFormatException e) {
+                            Log.e(TAG, "Invalid seq num update!");
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            Log.e(TAG, "Failed to put data.");
+                        } catch (ShortBufferException | InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
+                            e.printStackTrace();
+                            Log.e(TAG, "Error during data encryption!");
+                        }
+                    }
+                },
+                new OnRegisterFailed() {
+                    @Override
+                    public void onRegisterFailed(Name name) {
+                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_click));
+                        mPrefixRegisterError = true;
+                        Log.e(TAG, "Failed to register prefix: " + name.toUri());
+                    }
+                });
+        mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_update_seq), prefixId);
+    }
+
+    /**
+     * Get the next unused seq number. Handle if it overflows.
+     * @return next unused seq number for server
+     */
+    private int getNextSeqNum() {
+        if (mSeqNum == mMaxSeqNum) {
+            mSeqNum = 0;
+        } else {
+            mSeqNum++;
+        }
+        return mSeqNum;
     }
 }

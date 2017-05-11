@@ -44,7 +44,7 @@ def main(argv):
 		server.run()
 	except KeyboardInterrupt:
 		print("\nExiting...")
-		logging.info("\nExiting...")
+		logging.info("Exiting...")
 	finally:
 		server.shutdown()
 
@@ -109,21 +109,26 @@ class ndnMouseClientNDN():
 	# Callback for when data is returned for an interest
 	def _onData(self, interest, data):
 		byte_string_data = bytes(data.getContent().buf())
-		msg = byte_string_data.decode()
-		
-		# Handle different commands
-		if msg.startswith("REL") or msg.startswith("ABS"):
-			self._handleMove(msg)
-		elif msg.startswith("CLK"):
-			_, click, updown = msg.split('_')
-			self._handleClick(click, updown)
-		elif msg.startswith("KP"):
-			_, keypress, updown = msg.split('_')
-			self._handleKeypress(keypress, updown)
+		try:
+			msg = byte_string_data.decode()
+			
+			# Handle different commands
+			if msg.startswith("REL") or msg.startswith("ABS"):
+				self._handleMove(msg)
+			elif msg.startswith("CLK"):
+				_, click, updown = msg.split('_')
+				self._handleClick(click, updown)
+			elif msg.startswith("KP"):
+				_, keypress, updown = msg.split('_')
+				self._handleKeypress(keypress, updown)
+
+			logging.info("Got returned data from {0}: {1}".format(data.getName().toUri(), msg))
+
+		except UnicodeDecodeError:
+				logging.error("Failed to parse data. Password on server?")
 
 		# Resend interest to get move/click data
 		self.face.expressInterest(interest, self._onData, self._onTimeout)
-		logging.info("Got returned data from {0}: {1}".format(data.getName().toUri(), msg))
 		
 
 	# Callback for when interest times out
@@ -196,12 +201,17 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 	iv_bytes = 16
 	key_bytes = 16
 	aes_block_size = 16
+	max_bad_seq_nums = 5
+	max_seq_num = 2147483647
+
 
 	def __init__(self, addr, password):
 		super().__init__(addr)
 		self.key = self._getKeyFromPassword(password)
 		self.rndfile = Random.new()
 		self.seq_num = 0
+		self.bad_seq_num_count = 0
+		self.pending_update_seq_interest = False
 
 
 	def run(self):
@@ -236,23 +246,22 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 
 
 	############################################################################
-	# Interest Callbacks
+	# Interest Callbacks and Helpers
 	############################################################################
 
-	# Callback for when data is returned for an interest
+	# Callback when data is returned for a general mouse command interest
 	def _onData(self, interest, data):
 		data_bytes = bytes(data.getContent().buf())
 		server_iv = data_bytes[:self.iv_bytes]
 		encrypted = data_bytes[self.iv_bytes:]
-		decrypted = self._decryptData(encrypted, server_iv)
-
-		server_seq_num = intFromBytes(decrypted[:self.seq_num_bytes])
-		# logging.info("server seq num = {0}, client seq num = {1}".format(server_seq_num, self.seq_num))
-		# If decrypted response has a valid seq num...
-		if server_seq_num > self.seq_num:
-			try:
+		try:
+			decrypted = self._decryptData(encrypted, server_iv)
+			server_seq_num = intFromBytes(decrypted[:self.seq_num_bytes])
+			# logging.info("server seq num = {0}, client seq num = {1}".format(server_seq_num, self.seq_num))
+			# If decrypted response has a valid seq num...
+			if server_seq_num > self.seq_num or self.seq_num == self.max_seq_num:
 				msg = decrypted[self.seq_num_bytes:].decode()
-				self.seq_num = server_seq_num
+				good_cmd = True		# Goes false if could not recognize the control command
 
 				# Handle different commands
 				if msg.startswith("REL") or msg.startswith("ABS"):
@@ -264,23 +273,85 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 					_, keypress, updown = msg.split('_')
 					self._handleKeypress(keypress, updown)
 				else:
+					good_cmd = false
 					logging.error("Bad response data received. Wrong password?")
+
+				# Only update seq num if we handled the command
+				if good_cmd:
+					self.seq_num = server_seq_num
+					self.bad_seq_num_count = 0
 
 				logging.debug("Got returned data from {0}: {1}".format(data.getName().toUri(), msg))
 
-			except UnicodeDecodeError:
-				logging.error("Failed to decrypt data. Wrong password?")
-		else:
-			logging.error("Bad sequence number received. Restart client if you think these are valid messages.")
-
+			else:
+				logging.error("Bad sequence number received!")
+				self.bad_seq_num_count += 1
+				if self.bad_seq_num_count > self.max_bad_seq_nums:
+					# Send special interest to update server's seq num
+					self._syncSeqNum()
+		except (UnicodeDecodeError, ValueError):
+			logging.error("Failed to decrypt data. Wrong password?")
+			
 		# Resend interest to get move/click data
 		self.face.expressInterest(interest, self._onData, self._onTimeout)
 		
 
-	# Callback for when interest times out
+	# Callback when timeout for a general mouse command interest
 	def _onTimeout(self, interest):
 		# Resend interest to get move/click data
 		self.face.expressInterest(interest, self._onData, self._onTimeout)
+
+
+	# Send a special interest to update the synchronize the server's seq num with consumer
+	def _syncSeqNum(self):
+		# Don't send another update seq interest if one is already pending
+		if self.pending_update_seq_interest:
+			return
+		self.pending_update_seq_interest = True
+
+		# If seq num passed INT_MAX, then reset to 0
+		if self.seq_num >= self.max_seq_num:
+			self.seq_num = 0
+		interest_update_seq = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/seq/" + str(self.seq_num)))
+		interest_update_seq.setInterestLifetimeMilliseconds(self.interest_timeout)
+		interest_update_seq.setMustBeFresh(True)
+		logging.info("Sending update seq num interest: /ndnmouse/seq/" + str(self.seq_num))
+		self.face.expressInterest(interest_update_seq, self._onUpdateSeqData, self._onUpdateSeqTimeout)
+
+	
+	# Callback when data is returned for an update seq num interest
+	def _onUpdateSeqData(self, interest, data):
+		data_bytes = bytes(data.getContent().buf())
+		server_iv = data_bytes[:self.iv_bytes]
+		encrypted = data_bytes[self.iv_bytes:]
+		decrypted = self._decryptData(encrypted, server_iv)
+
+		server_seq_num = intFromBytes(decrypted[:self.seq_num_bytes])
+		# logging.info("server seq num = {0}, client seq num = {1}".format(server_seq_num, self.seq_num))
+		# If decrypted response has a valid seq num...
+		if server_seq_num > self.seq_num or self.seq_num == self.max_seq_num:
+			try:
+				msg = decrypted[self.seq_num_bytes:].decode()
+				# Good response received, no additional update seq interests needed
+				if msg.startswith("ACK"):
+					self.seq_num = server_seq_num
+					self.bad_seq_num_count = 0
+					self.pending_update_seq_interest = False
+					return
+			
+			except UnicodeDecodeError:
+				logging.error("Failed to decrypt data. Wrong password?")
+		else:
+			logging.error("Bad sequence number received!")
+				
+		# Resend update seq interest, because we didn't get proper response back
+		self.face.expressInterest(interest, self._onUpdateSeqData, self._onUpdateSeqTimeout)	
+
+
+	# Callback when timeout for an update seq num interest
+	def _onUpdateSeqTimeout(self, interest):
+		# Resend interest to try to synchronize seq nums again
+		self.face.expressInterest(interest, self._onUpdateSeqData, self._onUpdateSeqTimeout)
 	
 
 	############################################################################

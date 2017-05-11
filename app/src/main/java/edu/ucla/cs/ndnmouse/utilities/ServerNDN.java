@@ -72,10 +72,6 @@ public class ServerNDN implements Runnable, Server {
     @Override
     public void stop() {
         mServerIsRunning = false;
-        if (null != mFace) {
-            mFace.shutdown();
-            mFace = null;
-        }
         Log.d(TAG, "Stopped NDN server...");
     }
 
@@ -99,9 +95,16 @@ public class ServerNDN implements Runnable, Server {
             }
         } catch (IOException|SecurityException|InterruptedException e) {
             e.printStackTrace();
+            Log.e(TAG, "Web server was interrupted and is now closed.", e);
         } catch (EncodingException e) {
             e.printStackTrace();
             Log.e(TAG, "Failed to encode/decode.");
+        }
+
+        // Shutdown the Face
+        if (null != mFace) {
+            mFace.shutdown();
+            mFace = null;
         }
     }
 
