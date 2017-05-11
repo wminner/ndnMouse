@@ -153,7 +153,7 @@ class NetworkHelpers {
     static byte[] decryptData(byte[] encrypted, Cipher cipher, SecretKeySpec key, IvParameterSpec iv) throws InvalidAlgorithmParameterException, InvalidKeyException, ShortBufferException, BadPaddingException, IllegalBlockSizeException, NegativeArraySizeException {
         // Log.d(TAG, "Decrypt data BEFORE: " + Arrays.toString(encrypted));
         cipher.init(Cipher.DECRYPT_MODE, key, iv);
-        // Log.d(TAG, "Decrypt data AFTER (length " + decryptLen + "): " + new String(decrypted));
+        Log.d(TAG, "Decrypt data AFTER: " + new String(cipher.doFinal(encrypted)));
         return NetworkHelpers.PKCS5Unpad(cipher.doFinal(encrypted));
     }
 

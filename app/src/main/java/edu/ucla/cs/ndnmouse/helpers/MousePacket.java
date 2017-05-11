@@ -56,6 +56,14 @@ public class MousePacket {
         mPayload = NetworkHelpers.decryptData(mEncryptedPayload, mCipher, mKey, mIv);
     }
 
+    public MousePacket(byte[] encryptedPacket, SecretKeySpec key, int packetBytes) throws IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException, ShortBufferException, InvalidKeyException, NegativeArraySizeException {
+        this(key);
+        // Decrypt and break down the packet
+        mIv = getEncryptedPacketIV(encryptedPacket);
+        mEncryptedPayload = Arrays.copyOfRange(encryptedPacket, mIvBytes, packetBytes);
+        mPayload = NetworkHelpers.decryptData(mEncryptedPayload, mCipher, mKey, mIv);
+    }
+
     /**
      * Constructor for outgoing mouse packet that will be encrypted
      * @param message bytes that contain a mouse command

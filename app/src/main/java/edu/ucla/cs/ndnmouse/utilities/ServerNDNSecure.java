@@ -15,6 +15,7 @@ import net.named_data.jndn.util.Blob;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -174,9 +175,28 @@ public class ServerNDNSecure extends ServerNDN {
 
                         Log.d(TAG, "Got interest: " + interest.getName());
 
+                        // Interest name format: /ndnmouse/seq/<iv><seq-num>SEQ
+                        //                      |----cleartext----|-ciphertext-|
+                        // iv (16 B) + encryptedMsg (16 B) = 32 B
+                        int packetBytes = 32;
                         try {
-                            // Sync the server's seq num using last interest component (if larger than current seq num)
-                            int syncSeqNum = Integer.valueOf(interest.getName().getSubName(-1).toUri().substring(1));
+                            // Get final component (the message), put into byte array
+                            ByteBuffer interestDataByteBuf = interest.getName().get(-1).getValue().buf();
+                            byte[] interestData = new byte[interestDataByteBuf.remaining()];
+                            interestDataByteBuf.get(interestData);
+
+                            // Use MousePacket to decrypt message
+                            MousePacket interestMousePacket = new MousePacket(interestData, mKey, packetBytes);
+                            int syncSeqNum = interestMousePacket.getSeqNum();
+                            String interestMsg = interestMousePacket.getMessage();
+
+                            // Verify decrypted message is as expected, otherwise return
+                            if (!interestMsg.startsWith("SEQ")) {
+                                Log.e(TAG, "Invalid seq num update command!");
+                                return;
+                            }
+
+                            // If requested seq num larger than current seq num, then update server's seq num
                             mSeqNum = Math.max(syncSeqNum, mSeqNum);
                             Log.d(TAG, "Setting server seq num to " + mSeqNum);
 
@@ -197,8 +217,8 @@ public class ServerNDNSecure extends ServerNDN {
                             // Send data out face
                             face.putData(replyData);
 
-                        } catch (NumberFormatException e) {
-                            Log.e(TAG, "Invalid seq num update!");
+//                        } catch (NumberFormatException e) {
+//                            Log.e(TAG, "Invalid seq num update!");
                         } catch (IOException e) {
                             e.printStackTrace();
                             Log.e(TAG, "Failed to put data.");

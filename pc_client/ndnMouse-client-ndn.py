@@ -201,6 +201,7 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 	iv_bytes = 16
 	key_bytes = 16
 	aes_block_size = 16
+	packet_bytes = 48
 	max_bad_seq_nums = 5
 	max_seq_num = 2147483647
 
@@ -312,10 +313,19 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 		# If seq num passed INT_MAX, then reset to 0
 		if self.seq_num >= self.max_seq_num:
 			self.seq_num = 0
-		interest_update_seq = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/seq/" + str(self.seq_num)))
+
+		# Make interest name
+		iv = self._getNewIV()
+		msg = intToBytes(self.seq_num) + b"SEQ"
+		encrypted_seq_num = self._encryptData(msg, iv)
+		interest_name = pyndn.name.Name("/ndnmouse/seq/")
+		interest_name.append(pyndn.name.Name.Component(iv + encrypted_seq_num))
+
+		# Make interest and send out face
+		interest_update_seq = pyndn.interest.Interest(interest_name)
 		interest_update_seq.setInterestLifetimeMilliseconds(self.interest_timeout)
 		interest_update_seq.setMustBeFresh(True)
-		logging.info("Sending update seq num interest: /ndnmouse/seq/" + str(self.seq_num))
+		logging.info("Sending update seq num interest: " + interest_name.toUri())
 		self.face.expressInterest(interest_update_seq, self._onUpdateSeqData, self._onUpdateSeqTimeout)
 
 	
@@ -358,16 +368,16 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 	# Encryption Helpers
 	############################################################################
 
-	# Encrypt data
+	# Encrypt data, message and iv are byte strings
 	def _encryptData(self, message, iv):
 		logging.info(b"Data SENT: " + message)
 		cipher = AES.new(self.key, AES.MODE_CBC, iv)
-		message = self._PKCS5Pad(message, self.packet_bytes - self.iv_bytes)
+		message = self._PKCS5Pad(message)
 		encrypted = cipher.encrypt(message)
 		logging.debug(b"Encrypting data SENT: " + encrypted)
 		return encrypted
 
-	# Decrypt data
+	# Decrypt data, encrypted and iv are byte strings
 	def _decryptData(self, encrypted, iv):
 		logging.debug(b"Encrypted data RECEIVED: " + encrypted)
 		cipher = AES.new(self.key, AES.MODE_CBC, iv)
@@ -375,7 +385,7 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 		logging.info(b"Data RECEIVED: " + decrypted)
 		return decrypted
 
-	# Get a new random initialization vector (IV)
+	# Get a new random initialization vector (IV), return byte string
 	def _getNewIV(self):		
 		return self.rndfile.read(self.iv_bytes)
 
