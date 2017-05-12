@@ -4,7 +4,6 @@ import android.graphics.Point;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.os.Parcel;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -29,6 +28,7 @@ import java.util.LinkedList;
 
 import edu.ucla.cs.ndnmouse.MouseActivity;
 import edu.ucla.cs.ndnmouse.R;
+import edu.ucla.cs.ndnmouse.helpers.NetworkHelpers;
 
 public class ServerNDN implements Runnable, Server {
 
@@ -158,10 +158,11 @@ public class ServerNDN implements Runnable, Server {
                         // Find scaled x and y position according to sensitivity (absolute movement deprecated for now)
                         int scaledX = (int) (position.x * mSensitivity);
                         int scaledY = (int) (position.y * mSensitivity);
-                        // Build reply string and set data contents
-                        String replyString = moveType + " " + scaledX + "," + scaledY;
+
+                        // Build reply message and set data contents
+                        byte[] reply = NetworkHelpers.buildMoveMessage(moveType, scaledX, scaledY);
                         // Log.d(TAG, "Sending update: " + replyString);
-                        replyData.setContent(new Blob(replyString));
+                        replyData.setContent(new Blob(reply));
 
                         // Send data out face
                         try {
@@ -230,15 +231,6 @@ public class ServerNDN implements Runnable, Server {
     public void executeCommand(int click) throws IOException {
         mClickQueue.add(click);
     }
-
-//    /**
-//     * Send a key press command to all current clients
-//     * @param keyPress type of key pressed
-//     * @throws IOException for face IO error
-//     */
-//    public void executeKeyPress(int keyPress) throws IOException {
-//        // TODO key presses
-//    }
 
     /**
      * This is called whenever settings are updated, so the server can change its behavior on the fly

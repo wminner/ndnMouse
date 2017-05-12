@@ -19,40 +19,38 @@ import javax.crypto.spec.SecretKeySpec;
 /**
  * Helpers to format/process data sent and received by network
  */
-class NetworkHelpers {
+public class NetworkHelpers {
 
     private static final String TAG = NetworkHelpers.class.getSimpleName();
 
     private static final int mAesBlockSize = 16;
+    private static final int mMoveMessageBytes = 10;
     private static final int mIvBytes = mAesBlockSize;
     private static SecureRandom mRandom;
 
     /**
      * Converts integer to 4 byte big endian (in order to send via network)
-     *
-     * @param x integer to convert
+     * @param i integer to convert
      * @return byte array (size 4) of the converted integer
      */
     @NonNull
-    static byte[] intToBytes(int x) {
+    static byte[] intToBytes(int i) {
         ByteBuffer buf = ByteBuffer.allocate(4);
-        buf.putInt(x);
+        buf.putInt(i);
         return buf.array();
     }
 
     /**
      * Converts big endian byte array (assumed to be size 4) to integer.
-     *
-     * @param xbytes array of bytes to convert (must be size 4)
+     * @param ibytes array of bytes to convert (must be size 4)
      * @return converted integer
      */
-    static int intFromBytes(byte[] xbytes) {
-        return ByteBuffer.wrap(xbytes).getInt();
+    static int intFromBytes(byte[] ibytes) {
+        return ByteBuffer.wrap(ibytes).getInt();
     }
 
     /**
      * PKCS5 padding extended to allow for greater than 16 byte pads
-     *
      * @param data to be padded
      * @param maxPad the maximum number of bytes that can be padded
      * @return resulting padded data
@@ -76,7 +74,6 @@ class NetworkHelpers {
 
     /**
      * PKCS5 standard unpadder
-     *
      * @param data to be unpadded
      * @return resulting unpadded data
      */
@@ -90,7 +87,6 @@ class NetworkHelpers {
 
     /**
      * Pad data with null bytes
-     *
      * @param data to be padded
      * @param newLen of the resulting padded data
      * @return padded data
@@ -107,7 +103,6 @@ class NetworkHelpers {
 
     /**
      * Trim null bytes from data
-     *
      * @param data to be trimmed
      * @return resulting trimmed data
      */
@@ -121,7 +116,6 @@ class NetworkHelpers {
 
     /**
      * Encrypts data using user key and specified IV
-     *
      * @param message to encrypt
      * @param iv (initialization vector) to use with CBC
      * @return bytes of encrypted message
@@ -134,13 +128,12 @@ class NetworkHelpers {
     static byte[] encryptData(byte[] message, Cipher cipher, SecretKeySpec key, IvParameterSpec iv) throws InvalidAlgorithmParameterException, InvalidKeyException, ShortBufferException, BadPaddingException, IllegalBlockSizeException {
         Log.d(TAG, "Encrypt data BEFORE: " + new String(message));
         cipher.init(Cipher.ENCRYPT_MODE, key, iv);
-        // Log.d(TAG, "Encrypt data AFTER (length " + encryptLen + "): " + Arrays.toString(encrypted));
+        // Log.d(TAG, "Encrypt data AFTER: " + Arrays.toString(encrypted));
         return cipher.doFinal(NetworkHelpers.PKCS5Pad(message, MousePacket.mPacketBytes - mIvBytes));
     }
 
     /**
      * Decrypts data using user key and specified IV
-     *
      * @param encrypted bytes to decrypt
      * @param iv (initialization vector) to use with CBC
      * @return bytes of decrypted message
@@ -153,13 +146,12 @@ class NetworkHelpers {
     static byte[] decryptData(byte[] encrypted, Cipher cipher, SecretKeySpec key, IvParameterSpec iv) throws InvalidAlgorithmParameterException, InvalidKeyException, ShortBufferException, BadPaddingException, IllegalBlockSizeException, NegativeArraySizeException {
         // Log.d(TAG, "Decrypt data BEFORE: " + Arrays.toString(encrypted));
         cipher.init(Cipher.DECRYPT_MODE, key, iv);
-        Log.d(TAG, "Decrypt data AFTER: " + new String(cipher.doFinal(encrypted)));
+        // Log.d(TAG, "Decrypt data AFTER: " + new String(cipher.doFinal(encrypted)));
         return NetworkHelpers.PKCS5Unpad(cipher.doFinal(encrypted));
     }
 
     /**
      * Gets a new random IV
-     *
      * @return random IV
      */
     static IvParameterSpec getNewIV() {
@@ -168,5 +160,26 @@ class NetworkHelpers {
         byte[] newIv = new byte[mIvBytes];
         mRandom.nextBytes(newIv);
         return new IvParameterSpec(newIv);
+    }
+
+    /**
+     * Builds a mouse protocol move message (no seq num)
+     * Format of message:  M<x-4B><y-4B>
+     *     b"A\x00\x00\x01\x90\x00\x00\x01\xf4"	(move to absolute pixel coordinate x=400, y=500)
+     *	   b"M\xff\xff\xff\xb5\x00\x00\x00\x19"	(move 75 left, 25 up relative to current pixel position)
+     * @param moveType one character representing move type
+     * @param x pixels
+     * @param y pixels
+     * @return byte array with message
+     */
+    public static byte[] buildMoveMessage(String moveType, int x, int y) {
+        byte[] xBytes = intToBytes(x);
+        byte[] yBytes = intToBytes(y);
+        byte[] moveTypeBytes = moveType.getBytes();
+        byte[] msg = new byte[mMoveMessageBytes];
+        System.arraycopy(moveTypeBytes, 0, msg, 0, moveTypeBytes.length);
+        System.arraycopy(xBytes, 0, msg, moveTypeBytes.length, xBytes.length);
+        System.arraycopy(yBytes, 0, msg, moveTypeBytes.length + xBytes.length, yBytes.length);
+        return msg;
     }
 }

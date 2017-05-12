@@ -28,30 +28,31 @@
     <string name="right_click_label">RIGHT CLICK</string>
     <string name="touchpad_label">TOUCHPAD</string>
     <string name="action_settings">Settings</string>
-    <string name="action_left_click_down" translatable="false">CLK_left_D</string>
-    <string name="action_left_click_up" translatable="false">CLK_left_U</string>
-    <string name="action_right_click_down" translatable="false">CLK_right_D</string>
-    <string name="action_right_click_up" translatable="false">CLK_right_U</string>
-    <string name="action_left_click_full" translatable="false">CLK_left_F</string>
+    <string name="action_left_click_down" translatable="false">C_left_D</string>
+    <string name="action_left_click_up" translatable="false">C_left_U</string>
+    <string name="action_right_click_down" translatable="false">C_right_D</string>
+    <string name="action_right_click_up" translatable="false">C_right_U</string>
+    <string name="action_left_click_full" translatable="false">C_left_F</string>
     <string name="action_keyboard">Keyboard</string>
     <string name="intent_extra_server" translatable="false">EXTRA_SERVER</string>
 
-    <!--Keyboard Activity-->
+    <!--Keyboard Protocol and Labels-->
     <string name="keyboard_up_label" translatable="false">▲</string>
     <string name="keyboard_down_label" translatable="false">▼</string>
     <string name="keyboard_left_label" translatable="false">◀</string>
     <string name="keyboard_right_label" translatable="false">▶</string>
     <string name="keyboard_space_label">SPACEBAR</string>
-    <string name="action_keypress_up_arrow_down" translatable="false">KP_up_D</string>
-    <string name="action_keypress_up_arrow_up" translatable="false">KP_up_U</string>
-    <string name="action_keypress_down_arrow_down" translatable="false">KP_down_D</string>
-    <string name="action_keypress_down_arrow_up" translatable="false">KP_down_U</string>
-    <string name="action_keypress_left_arrow_down" translatable="false">KP_left_D</string>
-    <string name="action_keypress_left_arrow_up" translatable="false">KP_left_U</string>
-    <string name="action_keypress_right_arrow_down" translatable="false">KP_right_D</string>
-    <string name="action_keypress_right_arrow_up" translatable="false">KP_right_U</string>
-    <string name="action_keypress_spacebar_down" translatable="false">KP_space_D</string>
-    <string name="action_keypress_spacebar_up" translatable="false">KP_space_U</string>
+    <string name="action_keypress_up_arrow_down" translatable="false">K_up_D</string>
+    <string name="action_keypress_up_arrow_up" translatable="false">K_up_U</string>
+    <string name="action_keypress_down_arrow_down" translatable="false">K_down_D</string>
+    <string name="action_keypress_down_arrow_up" translatable="false">K_down_U</string>
+    <string name="action_keypress_left_arrow_down" translatable="false">K_left_D</string>
+    <string name="action_keypress_left_arrow_up" translatable="false">K_left_U</string>
+    <string name="action_keypress_right_arrow_down" translatable="false">K_right_D</string>
+    <string name="action_keypress_right_arrow_up" translatable="false">K_right_U</string>
+    <string name="action_keypress_spacebar_down" translatable="false">K_space_D</string>
+    <string name="action_keypress_spacebar_up" translatable="false">K_space_U</string>
+    <string name="action_type_string" translatable="false">T</string>
 
     <!--Settings Activity-->
     <string name="pref_tap_to_left_click_label">Tap to Left Click</string>
@@ -73,8 +74,8 @@
     <string name="pref_precision_default" translatable="false">5</string>
 
     <!--Communication Protocol-->
-    <string name="protocol_move_absolute" translatable="false">ABS</string>
-    <string name="protocol_move_relative" translatable="false">REL</string>
+    <string name="protocol_move_absolute" translatable="false">A</string>
+    <string name="protocol_move_relative" translatable="false">M</string>
     <string name="protocol_opening_request" translatable="false">OPEN</string>
     <string name="protocol_open_ack" translatable="false">OPEN-ACK</string>
     <string name="protocol_heartbeat_request" translatable="false">HEART</string>
@@ -86,6 +87,7 @@
     <string name="ndn_prefix_mouse_click" translatable="false">/ndnmouse/click</string>
     <string name="ndn_prefix_update_seq" translatable="false">/ndnmouse/seq</string>
     <string name="ndn_update_seq_reply" translatable="false">ACK</string>
+    <string name="ndn_update_seq_request" translatable="false">SEQ</string>
     <string name="ndn_prefix_identity" translatable="false">/ndnmouse/identity</string>
 
 </resources>

@@ -28,6 +28,7 @@ import javax.crypto.spec.SecretKeySpec;
 import edu.ucla.cs.ndnmouse.MouseActivity;
 import edu.ucla.cs.ndnmouse.R;
 import edu.ucla.cs.ndnmouse.helpers.MousePacket;
+import edu.ucla.cs.ndnmouse.helpers.NetworkHelpers;
 
 public class ServerNDNSecure extends ServerNDN {
 
@@ -86,13 +87,14 @@ public class ServerNDNSecure extends ServerNDN {
                         // Find scaled x and y position according to sensitivity (absolute movement deprecated for now)
                         int scaledX = (int) (position.x * mSensitivity);
                         int scaledY = (int) (position.y * mSensitivity);
-                        // Build reply string and set data contents
-                        byte[] msg = (moveType + " " + scaledX + "," + scaledY).getBytes();
+
+                        // Build reply message and set data contents
+                        byte[] reply = NetworkHelpers.buildMoveMessage(moveType, scaledX, scaledY);
                         // Log.d(TAG, "Sending update: " + replyString);
 
                         try {
                             // Encrypt reply
-                            MousePacket mousePacket = new MousePacket(msg, getNextSeqNum(), mKey);
+                            MousePacket mousePacket = new MousePacket(reply, getNextSeqNum(), mKey);
                             byte[] encryptedReply = mousePacket.getEncryptedPacket();
 
                             // Set content of data
@@ -191,7 +193,7 @@ public class ServerNDNSecure extends ServerNDN {
                             String interestMsg = interestMousePacket.getMessage();
 
                             // Verify decrypted message is as expected, otherwise return
-                            if (!interestMsg.startsWith("SEQ")) {
+                            if (!interestMsg.startsWith(mMouseActivity.getString(R.string.ndn_update_seq_request))) {
                                 Log.e(TAG, "Invalid seq num update command!");
                                 return;
                             }

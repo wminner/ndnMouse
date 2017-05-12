@@ -16,12 +16,12 @@ import javax.crypto.spec.SecretKeySpec;
 /**
  * Mouse command packet to help assemble and process packets. Only used for secure connections.
  * Secure packet description:
- *                     1                   2                   3                   4
- * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8
- * -------------------------------------------------------------------------------------------------
- * |              IV               |  Seq  |         Message (padding via an extended PKCS5)       |
- * -------------------------------------------------------------------------------------------------
- * <~~~~~~~~~ plaintext ~~~~~~~~~~~><~~~~~~~~~~~~~~~~~~ ciphertext (payload) ~~~~~~~~~~~~~~~~~~~~~~>
+ *                     1                   2                   3
+ * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2
+ * -----------------------------------------------------------------
+ * |              IV               |  Seq  |  Message (PKCS5 pad)  |
+ * -----------------------------------------------------------------
+ * <~~~~~~~~~ plaintext ~~~~~~~~~~~><~~~~~~~~~ ciphertext ~~~~~~~~~>
  *
 */
 public class MousePacket {
@@ -31,7 +31,7 @@ public class MousePacket {
     private SecretKeySpec mKey;
     private static Cipher mCipher;
 
-    public final static int mPacketBytes = 48;
+    public final static int mPacketBytes = 32;
     private final static int mIvBytes = 16;
     private final static int mSeqNumBytes = 4;
     private byte[] mPayload;

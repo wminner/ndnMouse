@@ -23,6 +23,7 @@ import javax.crypto.spec.SecretKeySpec;
 import edu.ucla.cs.ndnmouse.MouseActivity;
 import edu.ucla.cs.ndnmouse.R;
 import edu.ucla.cs.ndnmouse.helpers.MousePacket;
+import edu.ucla.cs.ndnmouse.helpers.NetworkHelpers;
 
 public class ServerUDPSecure extends ServerUDP {
 
@@ -238,7 +239,7 @@ public class ServerUDPSecure extends ServerUDP {
                     int scaledY = (int) (position.y * mSensitivity);
 
                     // Build reply message, create mouse packet from it, and send out encrypted reply
-                    byte[] msg = (moveType + " " + scaledX + "," + scaledY).getBytes();
+                    byte[] msg = NetworkHelpers.buildMoveMessage(moveType, scaledX, scaledY);
                     try {
                         MousePacket mousePacket = new MousePacket(msg, getNextSeqNum(), mKey);
                         byte[] encryptedReply = mousePacket.getEncryptedPacket();

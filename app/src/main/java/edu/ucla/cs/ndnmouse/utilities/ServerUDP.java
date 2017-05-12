@@ -17,6 +17,7 @@ import java.util.List;
 import edu.ucla.cs.ndnmouse.MouseActivity;
 import edu.ucla.cs.ndnmouse.R;
 import edu.ucla.cs.ndnmouse.helpers.MousePacket;
+import edu.ucla.cs.ndnmouse.helpers.NetworkHelpers;
 
 /**
  * Class to provide UDP communication with the PC client
@@ -148,22 +149,6 @@ public class ServerUDP implements Runnable, Server {
         }
     }
 
-//    /**
-//     * Send a key press command to all current clients
-//     * @param keyPress type of key pressed
-//     * @throws IOException for socket IO error
-//     */
-//    public void executeKeyPress(int keyPress) throws IOException {
-//        // TODO key presses
-//        for (WorkerThread client : mClientThreads.values()) {
-//            if (null != client.mReplyAddr && 0 != client.mReplyPort) {
-//                byte[] reply = (mMouseActivity.getString(keyPress)).getBytes();
-//                DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, client.mReplyAddr, client.mReplyPort);
-//                mSocket.send(replyPacket);
-//            }
-//        }
-//    }
-
     /**
      * Get IP address from first non-localhost interface
      * Based on code from:
@@ -291,10 +276,11 @@ public class ServerUDP implements Runnable, Server {
                     int scaledX = (int) (position.x * mSensitivity);
                     int scaledY = (int) (position.y * mSensitivity);
 
-                    // Build reply packet and send out socket
-                    byte[] reply = (moveType + " " + scaledX + "," + scaledY).getBytes();
+                    // Build reply message and send out socket
+                    byte[] reply = NetworkHelpers.buildMoveMessage(moveType, scaledX, scaledY);
                     Log.d(TAG, "Sending update: " + new String(reply));
 
+                    // Build and send datagram packet
                     DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
                     mSocket.send(replyPacket);
                 }

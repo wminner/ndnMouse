@@ -50,7 +50,7 @@ class ndnMouseClientUDP():
 	pyautogui.FAILSAFE = False
 	pyautogui.PAUSE = 0
 
-	packet_bytes = 48
+	packet_bytes = 16
 	max_refresh_attempts = 3
 	
 
@@ -68,8 +68,10 @@ class ndnMouseClientUDP():
 			logging.info(b"Sending message: " + message)
 			try:
 				self.sock.sendto(message, self.server_address)
-				data, server = self.sock.recvfrom(self.packet_bytes)
-				if data.startswith(b"OPEN-ACK"):
+				msg, server = self.sock.recvfrom(self.packet_bytes)
+				logging.info("Received message: {0}".format(msg))
+
+				if msg.startswith(b"OPEN-ACK"):
 					got_timeout = False
 					# Reset refresh attempts (so we go back to heartbeat)
 					self.refresh_attempts = 0
@@ -87,8 +89,10 @@ class ndnMouseClientUDP():
 			logging.info("Sending message: {0}".format(message))
 			try:
 				self.sock.sendto(message, self.server_address)
-				data, server = self.sock.recvfrom(self.packet_bytes)
-				if data.startswith(b"BEAT"):
+				msg, server = self.sock.recvfrom(self.packet_bytes)
+				logging.info("Received message: {0}".format(msg))
+
+				if msg.startswith(b"BEAT"):
 					got_timeout = False
 					# Reset refresh attempts
 					self.refresh_attempts = 0
@@ -117,7 +121,7 @@ class ndnMouseClientUDP():
 		# Receive and process mouse updates forever
 		while True:
 			try:
-				data, server = self.sock.recvfrom(self.packet_bytes)
+				msg, server = self.sock.recvfrom(self.packet_bytes)
 			except socket.timeout:
 				if self.refresh_attempts < self.max_refresh_attempts:
 					self._refreshConnection()
@@ -125,17 +129,16 @@ class ndnMouseClientUDP():
 					self._openConnection()
 				continue
 
-			msg = data.decode()
-			logging.info("Received from server {0}:{1}: {2}".format(server[0], server[1], msg))
+			logging.info("Received message: {0}".format(msg))
 			
 			# Handle different commands
-			if msg.startswith("REL") or msg.startswith("ABS"):
+			if msg.startswith(b"M") or msg.startswith(b"A"):
 				self._handleMove(msg)
-			elif msg.startswith("CLK"):
-				_, click, updown = msg.split('_')
+			elif msg.startswith(b"C"):
+				_, click, updown = msg.decode().split('_')
 				self._handleClick(click, updown)
-			elif msg.startswith("KP"):
-				_, keypress, updown = msg.split('_')
+			elif msg.startswith(b"K"):
+				_, keypress, updown = msg.decode().split('_')
 				self._handleKeypress(keypress, updown)
 			else:
 				logging.error("Bad command received. Password on server?")
@@ -177,18 +180,18 @@ class ndnMouseClientUDP():
 
 
 	# Handle movement commands
-	# Format of commands:
-	#	"ABS 400,500"	(move to absolute pixel coordinate x=400, y=500)
-	#	"REL -75,25"	(move 75 left, 25 up relative to current pixel position)
+	# Format of commands:  M<x-4B><y-4B>
+	#	b"A\x00\x00\x01\x90\x00\x00\x01\xf4"	(move to absolute pixel coordinate x=400, y=500)
+	#	b"M\xff\xff\xff\xb5\x00\x00\x00\x19"	(move 75 left, 25 up relative to current pixel position)
 	def _handleMove(self, data):
-		move_type = data[:3]
-		position = data[4:]
-		x, y = [int(i) for i in position.split(',')]
+		move_type = data[:1]
+		x = intFromBytes(data[1:5])
+		y = intFromBytes(data[5:9])
 
 		# Move mouse according to move_type (relative or absolute)
-		if (move_type == "REL"):
+		if (move_type == b"M"):
 			pyautogui.moveRel(x, y, self.transition_time)
-		elif (move_type == "ABS"):
+		elif (move_type == b"A"):
 			pyautogui.moveTo(x, y, self.transition_time)
 
 
@@ -197,12 +200,12 @@ class ndnMouseClientUDP():
 ################################################################################
 
 # Packet description
-#                     1                   2                   3                   4
-# 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8
-# -------------------------------------------------------------------------------------------------
-# |              IV               |  Seq  |         Message (padding via an extended PKCS5)       |
-# -------------------------------------------------------------------------------------------------
-# <~~~~~~~~~ plaintext ~~~~~~~~~~~><~~~~~~~~~~~~~~~~~~~~~ ciphertext ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>
+#                     1                   2                   3    
+# 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 
+# -----------------------------------------------------------------
+# |              IV               |  Seq  |  Message (PKCS5 pad)  |
+# -----------------------------------------------------------------
+# <~~~~~~~~~ plaintext ~~~~~~~~~~~><~~~~~~~~~ ciphertext ~~~~~~~~~>
 
 class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 	
@@ -211,6 +214,7 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 	iv_bytes = 16
 	key_bytes = 16
 	aes_block_size = 16
+	packet_bytes = 32
 	max_seq_num = 2147483647
 
 
@@ -338,16 +342,16 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 			# If decrypted message has a valid seq num...
 			if server_seq_num > self.seq_num or self.seq_num == self.max_seq_num:
 				self.seq_num = server_seq_num
-				msg = decrypted[self.seq_num_bytes:].decode()
+				msg = decrypted[self.seq_num_bytes:]
 			
 				# Handle different commands
-				if msg.startswith("REL") or msg.startswith("ABS"):
+				if msg.startswith(b"M") or msg.startswith(b"A"):
 					self._handleMove(msg)
-				elif msg.startswith("CLK"):
-					_, click, updown = msg.split('_')
+				elif msg.startswith(b"C"):
+					_, click, updown = msg.decode().split('_')
 					self._handleClick(click, updown)
-				elif msg.startswith("KP"):
-					_, keypress, updown = msg.split('_')
+				elif msg.startswith(b"K"):
+					_, keypress, updown = msg.decode().split('_')
 					self._handleKeypress(keypress, updown)
 				else:
 					logging.error("Bad command received. Wrong password?")
@@ -477,17 +481,17 @@ def getPassword():
 # Helper Functions
 ################################################################################
 
-# Takes unsigned integer and tranforms to byte string (truncating if necessary)
+# Takes signed integer and tranforms to byte string (truncating if necessary)
 def intToBytes(x):
 	try:
-		return x.to_bytes(4, 'big')
+		return x.to_bytes(4, 'big', signed=True)
 	except OverflowError:
-		x %= 4294967296
-		return x.to_bytes(4, 'big')
+		x %= 2147483648
+		return x.to_bytes(4, 'big', signed=True)
 
-# Takes byte string and transforms to integer
+# Takes byte string and transforms to signed integer
 def intFromBytes(xbytes):
-	return int.from_bytes(xbytes, 'big')
+	return int.from_bytes(xbytes, 'big', signed=True)
 
 
 # Strip off script name in arg list
