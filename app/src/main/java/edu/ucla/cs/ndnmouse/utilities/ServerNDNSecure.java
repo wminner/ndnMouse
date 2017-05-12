@@ -34,7 +34,8 @@ public class ServerNDNSecure extends ServerNDN {
 
     private static final String TAG = ServerNDNSecure.class.getSimpleName();
 
-    private String mPassword;
+    // private String mPassword;
+    private byte[] mSalt;
     private SecretKeySpec mKey;
     private int mSeqNum;
     private static final int mMaxSeqNum = Integer.MAX_VALUE;
@@ -48,9 +49,10 @@ public class ServerNDNSecure extends ServerNDN {
     public ServerNDNSecure(MouseActivity activity, float sensitivity, String password) {
         super(activity, sensitivity);
 
-        mPassword = password;
+        // mPassword = password;
+        mSalt = NetworkHelpers.getNewIV().getIV();
         try {
-            mKey = mMouseActivity.makeKeyFromPassword(password);
+            mKey = mMouseActivity.makeKeyFromPassword(password, mSalt);
         } catch (UnsupportedEncodingException | NoSuchAlgorithmException e) {
             e.printStackTrace();
             Log.e(TAG, "Error: failed to create KeySpec! Aborting...");
@@ -180,7 +182,6 @@ public class ServerNDNSecure extends ServerNDN {
                         // Interest name format: /ndnmouse/seq/<iv><seq-num>SEQ
                         //                      |----cleartext----|-ciphertext-|
                         // iv (16 B) + encryptedMsg (16 B) = 32 B
-                        int packetBytes = 32;
                         try {
                             // Get final component (the message), put into byte array
                             ByteBuffer interestDataByteBuf = interest.getName().get(-1).getValue().buf();
@@ -188,12 +189,12 @@ public class ServerNDNSecure extends ServerNDN {
                             interestDataByteBuf.get(interestData);
 
                             // Use MousePacket to decrypt message
-                            MousePacket interestMousePacket = new MousePacket(interestData, mKey, packetBytes);
+                            MousePacket interestMousePacket = new MousePacket(interestData, mKey);
                             int syncSeqNum = interestMousePacket.getSeqNum();
                             String interestMsg = interestMousePacket.getMessage();
 
                             // Verify decrypted message is as expected, otherwise return
-                            if (!interestMsg.startsWith(mMouseActivity.getString(R.string.ndn_update_seq_request))) {
+                            if (!interestMsg.startsWith(mMouseActivity.getString(R.string.protocol_update_seq_request))) {
                                 Log.e(TAG, "Invalid seq num update command!");
                                 return;
                             }
@@ -206,7 +207,7 @@ public class ServerNDNSecure extends ServerNDN {
                             replyData.getMetaInfo().setFreshnessPeriod(mFreshnessPeriod);
 
                             // Build reply string and set data contents
-                            byte[] msg = (mMouseActivity.getString(R.string.ndn_update_seq_reply)).getBytes();
+                            byte[] msg = (mMouseActivity.getString(R.string.protocol_update_seq_reply)).getBytes();
                             // Log.d(TAG, "Sending update seq reply: " + replyString);
 
                             // Encrypt reply
@@ -219,8 +220,6 @@ public class ServerNDNSecure extends ServerNDN {
                             // Send data out face
                             face.putData(replyData);
 
-//                        } catch (NumberFormatException e) {
-//                            Log.e(TAG, "Invalid seq num update!");
                         } catch (IOException e) {
                             e.printStackTrace();
                             Log.e(TAG, "Failed to put data.");
@@ -239,6 +238,44 @@ public class ServerNDNSecure extends ServerNDN {
                     }
                 });
         mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_update_seq), prefixId);
+
+        // Prefix for providing server's password salt
+        Name prefix_salt = new Name(mMouseActivity.getString(R.string.ndn_prefix_salt));
+        prefixId = mFace.registerPrefix(prefix_salt,
+                new OnInterestCallback() {
+                    @Override
+                    public void onInterest(Name prefix, Interest interest, Face face, long interestFilterId, InterestFilter filter) {
+
+                        Log.d(TAG, "Got interest: " + interest.getName());
+
+                        // Salt sent in cleartext
+                        try {
+                            Data replyData = new Data(interest.getName());
+                            replyData.getMetaInfo().setFreshnessPeriod(mFreshnessPeriod);
+
+                            // Log.d(TAG, "Sending salt reply: " + replyString);
+
+                            // Set content of data
+                            replyData.setContent(new Blob(mSalt));
+
+                            // Send data out face
+                            face.putData(replyData);
+
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            Log.e(TAG, "Failed to put data.");
+                        }
+                    }
+                },
+                new OnRegisterFailed() {
+                    @Override
+                    public void onRegisterFailed(Name name) {
+                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_click));
+                        mPrefixRegisterError = true;
+                        Log.e(TAG, "Failed to register prefix: " + name.toUri());
+                    }
+                });
+        mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_salt), prefixId);
     }
 
     /**

@@ -194,23 +194,24 @@ class ndnMouseClientNDN():
 
 class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 
-	rndfile = None
+	# Constants
 	seq_num_bytes = 4
 	iv_bytes = 16
+	salt_bytes = 16
 	key_bytes = 16
 	aes_block_size = 16
 	packet_bytes = 48
-	max_bad_seq_nums = 5
+	max_bad_responses = 5
 	max_seq_num = 2147483647
 
 
 	def __init__(self, addr, password):
 		super().__init__(addr)
-		self.key = self._getKeyFromPassword(password)
+		self.password = password
 		self.rndfile = Random.new()
 		self.seq_num = 0
-		self.bad_seq_num_count = 0
-		self.pending_update_seq_interest = False
+		self.bad_response_count = 0
+		self.pending_sync = False
 
 
 	def run(self):
@@ -218,6 +219,14 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 		print("Routing /ndnmouse interests to Face udp://{0}.".format(self.server_address))
 		logging.info("Use ctrl+c quit at anytime....")
 		logging.info("Routing /ndnmouse interests to Face udp://{0}.".format(self.server_address))
+
+		# Request password salt from producer
+		self._requestSalt()
+
+		# Wait for salt data to come back
+		while not self.salt_received:
+			self.face.processEvents()
+			time.sleep(self.sleep_time)
 
 		# Make interest to get movement data
 		interest_move = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/move"))
@@ -229,7 +238,7 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 		interest_click.setInterestLifetimeMilliseconds(self.interest_timeout)
 		interest_click.setMustBeFresh(True)
 
-		# Send interests
+		# Send move and click interests
 		self.face.expressInterest(interest_move, self._onData, self._onTimeout)
 		self.face.expressInterest(interest_click, self._onData, self._onTimeout)
 
@@ -272,25 +281,31 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 					_, keypress, updown = msg.decode().split('_')
 					self._handleKeypress(keypress, updown)
 				else:
-					good_cmd = false
 					logging.error("Bad response data received. Wrong password?")
+					good_cmd = False
+					self.bad_response_count += 1
+					if self.bad_response_count > self.max_bad_responses:
+						self._syncWithServer()
 
-				# Only update seq num if we handled the command
+				# Only update seq num if we handled the command, also reset bad response count
 				if good_cmd:
 					self.seq_num = server_seq_num
-					self.bad_seq_num_count = 0
+					self.bad_response_count = 0
 
 				logging.debug("Got returned data from {0}: {1}".format(data.getName().toUri(), msg))
 
 			else:
 				logging.error("Bad sequence number received!")
-				self.bad_seq_num_count += 1
-				if self.bad_seq_num_count > self.max_bad_seq_nums:
+				self.bad_response_count += 1
+				if self.bad_response_count > self.max_bad_responses:
 					# Send special interest to update server's seq num
-					self._syncSeqNum()
+					self._syncWithServer()
 
 		except (UnicodeDecodeError, ValueError):
 			logging.error("Failed to decrypt data. Wrong password?")
+			self.bad_response_count += 1
+			if self.bad_response_count > self.max_bad_responses:
+				self._syncWithServer()
 			
 		# Resend interest to get move/click data
 		self.face.expressInterest(interest, self._onData, self._onTimeout)
@@ -302,13 +317,38 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 		self.face.expressInterest(interest, self._onData, self._onTimeout)
 
 
-	# Send a special interest to update the synchronize the server's seq num with consumer
-	def _syncSeqNum(self):
-		# Don't send another update seq interest if one is already pending
-		if self.pending_update_seq_interest:
-			return
-		self.pending_update_seq_interest = True
+	# Send a salt request interest
+	def _requestSalt(self):
+		logging.info("Sending salt request interest: /ndnmmouse/salt")
+		self.salt_received = False
+		interest_salt = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/salt"))
+		interest_salt.setInterestLifetimeMilliseconds(self.interest_timeout)
+		interest_salt.setMustBeFresh(True)
+		self.face.expressInterest(interest_salt, self._onSaltData, self._onSaltTimeout)
 
+
+	# Callback when data is returned for getting password salt from producer
+	def _onSaltData(self, interest, data):
+		# Validate salt is correct length
+		salt = bytes(data.getContent().buf())
+		logging.info(b"Received salt data: " + salt)
+		if len(salt) == self.salt_bytes:
+			# Get key from password and salt
+			self.key = self._getKeyFromPassword(self.password, salt)
+			self.salt_received = True
+		else:
+			# Otherwise try requesting salt again
+			self.face.expressInterest(interest, self._onSaltData, self._onSaltTimeout)
+
+
+	# Callback when timeout for getting password salt from producer
+	def _onSaltTimeout(self, interest):
+		# Just resend interest
+		self.face.expressInterest(interest, self._onSaltData, self._onSaltTimeout)
+	
+
+	# Send a special interest to update the synchronize the server's seq num with consumer
+	def _setServerSeqNum(self):
 		# If seq num passed INT_MAX, then reset to 0
 		if self.seq_num >= self.max_seq_num:
 			self.seq_num = 0
@@ -324,7 +364,7 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 		interest_update_seq = pyndn.interest.Interest(interest_name)
 		interest_update_seq.setInterestLifetimeMilliseconds(self.interest_timeout)
 		interest_update_seq.setMustBeFresh(True)
-		logging.info("Sending update seq num interest: " + interest_name.toUri())
+		logging.debug("Sending set seq num interest: " + interest_name.toUri())
 		self.face.expressInterest(interest_update_seq, self._onUpdateSeqData, self._onUpdateSeqTimeout)
 
 	
@@ -342,14 +382,15 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 			try:
 				msg = decrypted[self.seq_num_bytes:]
 				# Good response received, no additional update seq interests needed
-				if msg.startswith(b"ACK"):
+				if msg.startswith(b"SEQ-ACK"):
 					self.seq_num = server_seq_num
-					self.bad_seq_num_count = 0
-					self.pending_update_seq_interest = False
 					return
 			
 			except UnicodeDecodeError:
 				logging.error("Failed to decrypt data. Wrong password?")
+				self.bad_response_count += 1
+				if self.bad_response_count > self.max_bad_responses:
+					self._syncWithServer()
 		else:
 			logging.error("Bad sequence number received!")
 				
@@ -361,7 +402,30 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 	def _onUpdateSeqTimeout(self, interest):
 		# Resend interest to try to synchronize seq nums again
 		self.face.expressInterest(interest, self._onUpdateSeqData, self._onUpdateSeqTimeout)
-	
+
+
+	# If consumer gets bad responses, sync with server by re-getting password 
+	# salt and setting the server's seq num
+	def _syncWithServer(self):
+		# Don't try to sync if sync is already pending
+		if self.pending_sync:
+			return
+		self.pending_sync = True
+
+		logging.info("Attempting to synchronize with server")
+		# Get password salt
+		self._requestSalt()
+		# Wait for salt data to return
+		while not self.salt_received:
+			self.face.processEvents()
+			time.sleep(self.sleep_time)
+
+		# Set server's seq num
+		self._setServerSeqNum()
+
+		# Reset bad response count and sync is complete
+		self.bad_response_count = 0
+		self.pending_sync = False
 
 	############################################################################
 	# Encryption Helpers
@@ -388,10 +452,12 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 	def _getNewIV(self):		
 		return self.rndfile.read(self.iv_bytes)
 
-	# Hash password into key
-	def _getKeyFromPassword(self, password):
+	# Hash password and salt (if provided) into key
+	# 	password: string
+	#	salt: byte string
+	def _getKeyFromPassword(self, password, salt=b""):
 		sha = hashlib.sha256()
-		sha.update(password.encode())
+		sha.update(password.encode() + salt)
 		# Only take first 128 bits (16 B)
 		return sha.digest()[:self.key_bytes]
 

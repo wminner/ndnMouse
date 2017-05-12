@@ -80,14 +80,15 @@
     <string name="protocol_open_ack" translatable="false">OPEN-ACK</string>
     <string name="protocol_heartbeat_request" translatable="false">HEART</string>
     <string name="protocol_heartbeat_ack" translatable="false">BEAT</string>
+    <string name="protocol_update_seq_request" translatable="false">SEQ</string>
+    <string name="protocol_update_seq_reply" translatable="false">SEQ-ACK</string>
     <string name="protocol_closing_request" translatable="false">CLOSE</string>
 
     <!--ServerNDN-->
     <string name="ndn_prefix_mouse_move" translatable="false">/ndnmouse/move</string>
     <string name="ndn_prefix_mouse_click" translatable="false">/ndnmouse/click</string>
     <string name="ndn_prefix_update_seq" translatable="false">/ndnmouse/seq</string>
-    <string name="ndn_update_seq_reply" translatable="false">ACK</string>
-    <string name="ndn_update_seq_request" translatable="false">SEQ</string>
+    <string name="ndn_prefix_salt" translatable="false">/ndnmouse/salt</string>
     <string name="ndn_prefix_identity" translatable="false">/ndnmouse/identity</string>
 
 </resources>

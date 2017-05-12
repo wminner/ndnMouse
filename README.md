@@ -14,7 +14,7 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 * UDP and NDN support
 * Security:
 	* AES cipher block chaining with random IVs for each message
-	* Random salt applied to password (UDP only)
+	* Random salt applied to password
 	* Replay attack prevention via sequence number enforcement policy
 
 ### Supported Platforms

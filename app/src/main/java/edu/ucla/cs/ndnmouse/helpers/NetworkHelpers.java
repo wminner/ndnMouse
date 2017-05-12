@@ -154,7 +154,7 @@ public class NetworkHelpers {
      * Gets a new random IV
      * @return random IV
      */
-    static IvParameterSpec getNewIV() {
+    public static IvParameterSpec getNewIV() {
         if (null == mRandom)
             mRandom = new SecureRandom();
         byte[] newIv = new byte[mIvBytes];

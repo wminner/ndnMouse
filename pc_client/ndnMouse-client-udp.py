@@ -209,7 +209,7 @@ class ndnMouseClientUDP():
 
 class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 	
-	rndfile = None
+	# Constants
 	seq_num_bytes = 4
 	iv_bytes = 16
 	key_bytes = 16
