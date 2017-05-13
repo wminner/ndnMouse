@@ -41,6 +41,7 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 1. Compile and install the app using Android Studio on your Android phone.
 1. On your PC, install Python3 and pip3. Then install the two Python libraries: PyAutoGUI and pycrypto.
 	1. Python3 and pip3 (to help install Python libraries): `sudo apt-get install python3 python3-pip`
+	1. On OSX, you may need to install Quartz (a dependency of PyAutoGUI): `sudo pip3 install pyobjc-framework-Quartz`
 	1. PyAutoGUI and pycrypto: `sudo pip3 install pyautogui pycrypto`
 
 ### Running

@@ -1,5 +1,8 @@
 package edu.ucla.cs.ndnmouse.helpers;
 
+import android.app.Application;
+import android.app.admin.SystemUpdatePolicy;
+import android.content.res.Resources;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
@@ -167,6 +170,7 @@ public class NetworkHelpers {
      * Format of message:  M<x-4B><y-4B>
      *     b"A\x00\x00\x01\x90\x00\x00\x01\xf4"	(move to absolute pixel coordinate x=400, y=500)
      *	   b"M\xff\xff\xff\xb5\x00\x00\x00\x19"	(move 75 left, 25 up relative to current pixel position)
+     *	   b"S\x00\x00\x00\x19" (scroll 25 up)
      * @param moveType one character representing move type
      * @param x pixels
      * @param y pixels
@@ -176,10 +180,34 @@ public class NetworkHelpers {
         byte[] xBytes = intToBytes(x);
         byte[] yBytes = intToBytes(y);
         byte[] moveTypeBytes = moveType.getBytes();
-        byte[] msg = new byte[mMoveMessageBytes];
+        byte[] msg = new byte[xBytes.length + yBytes.length + moveTypeBytes.length];
         System.arraycopy(moveTypeBytes, 0, msg, 0, moveTypeBytes.length);
         System.arraycopy(xBytes, 0, msg, moveTypeBytes.length, xBytes.length);
         System.arraycopy(yBytes, 0, msg, moveTypeBytes.length + xBytes.length, yBytes.length);
         return msg;
     }
+
+    /**
+     * Builds a mouse protocol scroll message (no seq num)
+     * Format of message:  S<y-4B>
+     * @param moveType one character representing move type (scroll only)
+     * @param y pixels
+     * @return byte array with message
+     */
+//    public static byte[] buildScrollMessage(String moveType, int x, int y, boolean invertedScroll) {
+//        byte[] xBytes, yBytes;
+//        if (invertedScroll) {
+//            xBytes = intToBytes(x);
+//            yBytes = intToBytes(y);
+//        } else {
+//            xBytes = intToBytes(-x);
+//            yBytes = intToBytes(-y);
+//        }
+//        byte[] moveTypeBytes = moveType.getBytes();
+//        byte[] msg = new byte[xBytes.length + yBytes.length + moveTypeBytes.length];
+//        System.arraycopy(moveTypeBytes, 0, msg, 0, moveTypeBytes.length);
+//        System.arraycopy(xBytes, 0, msg, moveTypeBytes.length, xBytes.length);
+//        System.arraycopy(yBytes, 0, msg, moveTypeBytes.length + xBytes.length, yBytes.length);
+//        return msg;
+//    }
 }

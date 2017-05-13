@@ -134,6 +134,8 @@ class ndnMouseClientUDP():
 			# Handle different commands
 			if msg.startswith(b"M") or msg.startswith(b"A"):
 				self._handleMove(msg)
+			elif msg.startswith(b"S"):
+				self._handleScroll(msg)
 			elif msg.startswith(b"C"):
 				_, click, updown = msg.decode().split('_')
 				self._handleClick(click, updown)
@@ -193,6 +195,20 @@ class ndnMouseClientUDP():
 			pyautogui.moveRel(x, y, self.transition_time)
 		elif (move_type == b"A"):
 			pyautogui.moveTo(x, y, self.transition_time)
+
+	# Handle two-finger scroll commands
+	# Format of commands:  S<y-4B>
+	#   b"S\x00\x00\x00\x19"	(scroll 25 up)
+	def _handleScroll(self, data):
+		move_type = data[:1]
+		x = intFromBytes(data[1:5])
+		y = intFromBytes(data[5:9])
+		# Prevent bug with pyautogui library where x < 10 causes opposite horizontal scrolling behavior
+		# https://github.com/asweigart/pyautogui/issues/154
+		if not (-9 <= x and x <= -1):
+			pyautogui.hscroll(x)
+		if y:
+			pyautogui.vscroll(y)
 
 
 ################################################################################

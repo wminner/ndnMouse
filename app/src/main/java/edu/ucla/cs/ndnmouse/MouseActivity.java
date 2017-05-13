@@ -3,6 +3,7 @@ package edu.ucla.cs.ndnmouse;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Point;
+import android.support.v4.view.MotionEventCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.preference.PreferenceManager;
@@ -58,6 +59,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     private Point mTouchDownPos;                                // Location when user last touched down on touchpad
     private static final long mTapClickMillisThreshold = 500;   // Max num of ms between touch down and touch up to count as a tap-click
     private static final int mTapClickPixelThreshold = 5;       // Max num of pixel difference between touch down and touch up to count as a tap-click
+
+    // Two finger scroll variables
+    private boolean mScrollingActivated = false;
+    private static final int mScrollVerticalDiffThreshold = 200;    // Pixel threshold for vertical difference between two fingers to activate scrolling
 
     // Password variables
     private static String mPassword;                            // User entered password
@@ -374,26 +379,29 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         mKeyboardTouchpadTextView.setOnTouchListener(new TouchpadListener());
     }
 
+    /**
+     * On Touch Listener for the multiple touchpad views on MouseActivity
+     */
     private class TouchpadListener implements View.OnTouchListener {
         @Override
         public boolean onTouch(View v, MotionEvent event) {
-            int x = (int) event.getX();
-            int y = (int) event.getY();
+            int x1 = (int) event.getX();
+            int y1 = (int) event.getY();
 
-            switch (event.getAction()) {
+            switch (event.getActionMasked()) {
                 case MotionEvent.ACTION_DOWN:
                     mTouchDownTime = System.currentTimeMillis();
-                    mTouchDownPos.set(x, y);
+                    mTouchDownPos.set(x1, y1);
                     mTouchDown = true;
 
-                    Log.d(TAG, String.format("ACTION_DOWN: %d %d", x, y));
+                    Log.d(TAG, String.format("ACTION_DOWN: %d %d", x1, y1));
                     break;
                 case MotionEvent.ACTION_MOVE:
                     // Log.d(TAG, String.format("ACTION_MOVE: %d %d", x, y));
                     break;
                 case MotionEvent.ACTION_UP:
                     // Check if user tapped (for tap-to-click)
-                    if (mTapToLeftClick && ((Math.abs(x - mTouchDownPos.x) <= mTapClickPixelThreshold) && (Math.abs(y - mTouchDownPos.y) <= mTapClickPixelThreshold))) {
+                    if (mTapToLeftClick && ((Math.abs(x1 - mTouchDownPos.x) <= mTapClickPixelThreshold) && (Math.abs(y1 - mTouchDownPos.y) <= mTapClickPixelThreshold))) {
                         long now = System.currentTimeMillis();
                         if (now - mTouchDownTime <= mTapClickMillisThreshold) {
                             try {
@@ -407,11 +415,25 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                     // Need to buffer an absolute position next time relative difference needs to be calculated
                     mBufferAbsPos = true;
 
-                    Log.d(TAG, String.format("ACTION_UP: %d %d", x, y));
+                    Log.d(TAG, String.format("ACTION_UP: %d %d", x1, y1));
                     break;
             }
 
-            updateAbsolutePosition(x, y);
+            // Check for two-fingers down (scrolling)
+            if (event.getPointerCount() == 2) {
+                // Get coordinates of 2nd finger down (index 1)
+                int y2 = (int) event.getY(1);
+                // Check if two fingers are horizontally aligned (within threshold)
+                if (Math.abs(y2 - y1) <= mScrollVerticalDiffThreshold) {
+                    mScrollingActivated = true;
+                    // Log.d(TAG, "Scrolling activated.");
+                } else
+                    mScrollingActivated = false;
+            } else {
+                mScrollingActivated = false;
+            }
+
+            updateAbsolutePosition(x1, y1);
             displayCoordinate((TextView) v);
             return true;
         }
@@ -481,6 +503,17 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         }
         mLastRelPos.set(mAbsPos.x, mAbsPos.y);
         return relativeDiff;
+    }
+
+    /**
+     * Get the move type: relative or scrolling movement
+     * @return move type in String form
+     */
+    public String getMoveType() {
+        if (mScrollingActivated)
+            return getString(R.string.protocol_move_scrolling);
+        else
+            return getString(R.string.protocol_move_relative);
     }
 
     /**

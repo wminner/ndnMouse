@@ -76,6 +76,7 @@
     <!--Communication Protocol-->
     <string name="protocol_move_absolute" translatable="false">A</string>
     <string name="protocol_move_relative" translatable="false">M</string>
+    <string name="protocol_move_scrolling" translatable="false">S</string>
     <string name="protocol_opening_request" translatable="false">OPEN</string>
     <string name="protocol_open_ack" translatable="false">OPEN-ACK</string>
     <string name="protocol_heartbeat_request" translatable="false">HEART</string>

@@ -31,6 +31,7 @@ public class ServerUDP implements Runnable, Server {
     final int mPort;                                // Port number (always 10888)
     boolean mServerIsRunning = false;               // Helps start and stop the server main thread
     float mSensitivity;                             // Sensitivity multiplier for relative movement
+    boolean mScrollingInverted = false;             // Inverts the two-finger scroll direction if true
 
     private HashMap<InetAddress, WorkerThread> mClientThreads;    // Holds all active worker threads that are servicing clients
 
@@ -265,8 +266,9 @@ public class ServerUDP implements Runnable, Server {
                 while (mWorkerIsRunning) {
                     // Don't send too many updates (may require tuning)
                     Thread.sleep(mUpdateIntervalMillis);
+                    // String moveType = mMouseActivity.getString(R.string.protocol_move_relative);
+                    String moveType = mMouseActivity.getMoveType();
                     Point position = mMouseActivity.getRelativePosition();
-                    String moveType = mMouseActivity.getString(R.string.protocol_move_relative);
 
                     // Skip update if no relative movement since last update
                     if (position.equals(0, 0))
@@ -277,8 +279,17 @@ public class ServerUDP implements Runnable, Server {
                     int scaledY = (int) (position.y * mSensitivity);
 
                     // Build reply message and send out socket
-                    byte[] reply = NetworkHelpers.buildMoveMessage(moveType, scaledX, scaledY);
-                    Log.d(TAG, "Sending update: " + new String(reply));
+                    byte[] reply;
+                    if (moveType.equals(mMouseActivity.getString(R.string.protocol_move_relative)))
+                        reply = NetworkHelpers.buildMoveMessage(moveType, scaledX, scaledY);
+                    else {
+                        if (!mScrollingInverted) {
+                            scaledX = -scaledX;
+                            scaledY = -scaledY;
+                        }
+                        reply = NetworkHelpers.buildMoveMessage(moveType, scaledX, scaledY);
+                    }
+                    Log.d(TAG, "Sending update: " + new String(reply) + ", x = " + scaledX + ", y = " + scaledY);
 
                     // Build and send datagram packet
                     DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
