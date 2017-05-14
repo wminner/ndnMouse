@@ -3,7 +3,6 @@ package edu.ucla.cs.ndnmouse;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Point;
-import android.support.v4.view.MotionEventCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.preference.PreferenceManager;
@@ -50,7 +49,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     private Point mLastRelPos;                                  // Used to calculate relative position differences
     private boolean mBufferAbsPos = true;                       // Used to decide when to buffer an absolute position (to get an accurate relative movement)
     private boolean mTouchDown = false;                         // User is currently touching down on touchpad (has not lifted yet)
-    private float mSensitivity;                                 // Sensitivity multiplier for mouse movement control
+    private float mMoveSensitivity;                                 // Sensitivity multiplier for mouse movement control
     private int mPrecision = 5;                                 // Min change in pixels to count as a movement update (otherwise same position)
 
     // Tap to left click variables
@@ -61,8 +60,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     private static final int mTapClickPixelThreshold = 5;       // Max num of pixel difference between touch down and touch up to count as a tap-click
 
     // Two finger scroll variables
-    private boolean mScrollingActivated = false;
-    private static final int mScrollVerticalDiffThreshold = 200;    // Pixel threshold for vertical difference between two fingers to activate scrolling
+    private boolean mScrollActivated = false;                   // Scrolling movement activated if true (two fingers down on touchpad)
+    private static final int mScrollVerticalDiffThreshold = 200;// Pixel threshold for vertical difference between two fingers to activate scrolling
+    private boolean mScrollInverted;                            // Scrolling movement is inverted if true
+    private Float mScrollSensitivity;                           // Scrolling movement sensitivity multiplier
 
     // Password variables
     private static String mPassword;                            // User entered password
@@ -98,15 +99,15 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                 // Create and start mServer
                 if (mUseNDN) {
                     if (mPassword.isEmpty())
-                        mServer = new ServerNDN(MouseActivity.this, mSensitivity);
+                        mServer = new ServerNDN(MouseActivity.this, mMoveSensitivity, mScrollInverted, mScrollSensitivity);
                     else
-                        mServer = new ServerNDNSecure(MouseActivity.this, mSensitivity, mPassword);
+                        mServer = new ServerNDNSecure(MouseActivity.this, mMoveSensitivity, mScrollInverted, mScrollSensitivity, mPassword);
                     Log.d(TAG, "Creating NDN server...");
                 } else {
                     if (mPassword.isEmpty())
-                        mServer = new ServerUDP(MouseActivity.this, mPort, mSensitivity);
+                        mServer = new ServerUDP(MouseActivity.this, mPort, mMoveSensitivity, mScrollInverted, mScrollSensitivity);
                     else
-                        mServer = new ServerUDPSecure(MouseActivity.this, mPort, mSensitivity, mPassword);
+                        mServer = new ServerUDPSecure(MouseActivity.this, mPort, mMoveSensitivity, mScrollInverted, mScrollSensitivity, mPassword);
                     Log.d(TAG, "Creating UDP server...");
                 }
                 mServer.start();
@@ -158,10 +159,16 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             // No need to update server setting because clicks are detected and executed by MouseActivity
             mTapToLeftClick = sharedPreferences.getBoolean(key, getResources().getBoolean(R.bool.pref_tap_to_left_click_default));
         } else if (key.equals(getString(R.string.pref_sensitivity_key))) {
-            mSensitivity = Float.valueOf(sharedPreferences.getString(key, getString(R.string.pref_sensitivity_default)));
-            mServer.UpdateSettings(R.string.pref_sensitivity_key, mSensitivity);
+            mMoveSensitivity = Float.valueOf(sharedPreferences.getString(key, getString(R.string.pref_sensitivity_default)));
+            mServer.UpdateSettings(R.string.pref_sensitivity_key, mMoveSensitivity);
         } else if (key.equals(getString(R.string.pref_precision_key))) {
             mPrecision = Integer.valueOf(sharedPreferences.getString(key, getString(R.string.pref_precision_default)));
+        } else if (key.equals(getString(R.string.pref_scroll_direction_key))) {
+            mScrollInverted = sharedPreferences.getString(key, getString(R.string.pref_scroll_direction_default)).equals(getString(R.string.pref_scroll_inverted_value));
+            mServer.UpdateSettings(R.string.pref_scroll_direction_key, mScrollInverted);
+        } else if (key.equals(getString(R.string.pref_scroll_sensitivity_key))) {
+            mScrollSensitivity = Float.valueOf(sharedPreferences.getString(key, getString(R.string.pref_scroll_sensitivity_default)));
+            mServer.UpdateSettings(R.string.pref_scroll_sensitivity_key, mScrollSensitivity);
         }
     }
 
@@ -171,8 +178,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     private void setupSharedPreferences() {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         mTapToLeftClick = sharedPreferences.getBoolean(getString(R.string.pref_tap_to_left_click_key), getResources().getBoolean(R.bool.pref_tap_to_left_click_default));
-        mSensitivity = Float.valueOf(sharedPreferences.getString(getString(R.string.pref_sensitivity_key), getString(R.string.pref_sensitivity_default)));
+        mMoveSensitivity = Float.valueOf(sharedPreferences.getString(getString(R.string.pref_sensitivity_key), getString(R.string.pref_sensitivity_default)));
         mPrecision = Integer.valueOf(sharedPreferences.getString(getString(R.string.pref_precision_key), getString(R.string.pref_precision_default)));
+        mScrollInverted = sharedPreferences.getString(getString(R.string.pref_scroll_direction_key), getString(R.string.pref_scroll_direction_default)).equals(getString(R.string.pref_scroll_inverted_value));
+        mScrollSensitivity = Float.valueOf(sharedPreferences.getString(getString(R.string.pref_scroll_sensitivity_key), getString(R.string.pref_scroll_sensitivity_default)));
     }
 
     /**
@@ -424,13 +433,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                 // Get coordinates of 2nd finger down (index 1)
                 int y2 = (int) event.getY(1);
                 // Check if two fingers are horizontally aligned (within threshold)
-                if (Math.abs(y2 - y1) <= mScrollVerticalDiffThreshold) {
-                    mScrollingActivated = true;
-                    // Log.d(TAG, "Scrolling activated.");
-                } else
-                    mScrollingActivated = false;
+                // Log.d(TAG, "Scrolling activated.");
+                mScrollActivated = (Math.abs(y2 - y1) <= mScrollVerticalDiffThreshold);
             } else {
-                mScrollingActivated = false;
+                mScrollActivated = false;
             }
 
             updateAbsolutePosition(x1, y1);
@@ -510,7 +516,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
      * @return move type in String form
      */
     public String getMoveType() {
-        if (mScrollingActivated)
+        if (mScrollActivated)
             return getString(R.string.protocol_move_scrolling);
         else
             return getString(R.string.protocol_move_relative);

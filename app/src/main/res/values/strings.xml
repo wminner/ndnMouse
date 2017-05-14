@@ -59,19 +59,29 @@
     <string name="pref_movement_label">Movement</string>
     <string name="pref_move_rel_label">Relative</string>
     <string name="pref_move_abs_label">Absolute</string>
-    <string name="pref_precision_label">Pixel Precision</string>
-    <string name="pref_sensitivity_label">Sensitivity</string>
+    <string name="pref_precision_label">Movement Pixel Precision</string>
+    <string name="pref_sensitivity_label">Movement Sensitivity</string>
+    <string name="pref_scroll_direction_label">Scrolling Direction</string>
+    <string name="pref_scroll_normal_label">Normal</string>
+    <string name="pref_scroll_inverted_label">Inverted</string>
+    <string name="pref_scroll_sensitivity_label">Scrolling Sensitivity</string>
 
     <!--Preference Key/Values-->
-    <string name="pref_tap_to_left_click_key" translatable="false">tap_to_left_click</string>
+    <string name="pref_tap_to_left_click_key" translatable="false">pref_tap_to_left_click</string>
     <string name="pref_movement_key" translatable="false">pref_movement</string>
     <string name="pref_movement_default" translatable="false">move_relative</string>
     <string name="pref_move_rel_value" translatable="false">move_relative</string>
     <string name="pref_move_abs_value" translatable="false">move_absolute</string>
-    <string name="pref_sensitivity_key" translatable="false">pref_sensitivity</string>
+    <string name="pref_sensitivity_key" translatable="false">pref_move_sensitivity</string>
     <string name="pref_sensitivity_default" translatable="false">1.5</string>
-    <string name="pref_precision_key" translatable="false">pref_precision</string>
+    <string name="pref_precision_key" translatable="false">pref_move_precision</string>
     <string name="pref_precision_default" translatable="false">5</string>
+    <string name="pref_scroll_direction_key" translatable="false">pref_scrolling_direction</string>
+    <string name="pref_scroll_normal_value" translatable="false">scroll_normal</string>
+    <string name="pref_scroll_inverted_value" translatable="false">scroll_inverted</string>
+    <string name="pref_scroll_direction_default" translatable="false">scroll_normal</string>
+    <string name="pref_scroll_sensitivity_key" translatable="false">pref_scroll_sensitivity</string>
+    <string name="pref_scroll_sensitivity_default" translatable="false">1</string>
 
     <!--Communication Protocol-->
     <string name="protocol_move_absolute" translatable="false">A</string>

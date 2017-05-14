@@ -9,7 +9,8 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 ### Current Features
 
 * Mouse control: movement, left click, right click, tap-to-click
-* Mouse sensitivity and precision settings
+* Mouse movement sensitivity and precision settings
+* Two-finger scrolling, with inversion and sensitivity settings
 * Rudimentary keyboard support (for slideshow control)
 * UDP and NDN support
 * Security:

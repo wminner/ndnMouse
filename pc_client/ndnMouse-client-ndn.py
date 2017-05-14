@@ -17,7 +17,7 @@ def main(argv):
 	logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO)
 	
 	# Prompt user for server address (port is always 6363 for NFD)
-	default_address = "149.142.48.182"
+	default_address = "192.168.1.2"
 	server_address = getServerAddress(default_address)
 
 	# Prompt user for password
@@ -113,6 +113,8 @@ class ndnMouseClientNDN():
 			# Handle different commands
 			if msg.startswith(b"M") or msg.startswith(b"A"):
 				self._handleMove(msg)
+			elif msg.startswith(b"S"):
+				self._handleScroll(msg)
 			elif msg.startswith(b"C"):
 				_, click, updown = msg.decode().split('_')
 				self._handleClick(click, updown)
@@ -177,6 +179,20 @@ class ndnMouseClientNDN():
 			pyautogui.moveRel(x, y, self.transition_time)
 		elif (move_type == b"A"):
 			pyautogui.moveTo(x, y, self.transition_time)
+
+	# Handle two-finger scroll commands
+	# Format of commands:  S<x-4B><y-4B>
+	#   b"S\xff\xff\xff\xb5\x00\x00\x00\x19"	(scroll 75 right, 25 up)
+	def _handleScroll(self, data):
+		move_type = data[:1]
+		x = intFromBytes(data[1:5])
+		y = intFromBytes(data[5:9])
+		# Prevent bug with pyautogui library where x < 10 causes opposite horizontal scrolling behavior
+		# https://github.com/asweigart/pyautogui/issues/154
+		if not (-9 <= x and x <= -1):
+			pyautogui.hscroll(x)
+		if y:
+			pyautogui.vscroll(y)
 
 
 ################################################################################
@@ -274,6 +290,8 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 				# Handle different commands
 				if msg.startswith(b"M") or msg.startswith(b"A"):
 					self._handleMove(msg)
+				elif msg.startswith(b"S"):
+					self._handleScroll(msg)
 				elif msg.startswith(b"C"):
 					_, click, updown = msg.decode().split('_')
 					self._handleClick(click, updown)

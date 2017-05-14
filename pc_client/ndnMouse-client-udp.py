@@ -15,7 +15,7 @@ def main(argv):
 	LOG_FILENAME = "log.txt"
 	logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO)
 	
-	default_address = '149.142.48.182'
+	default_address = '192.168.1.2'
 	default_port = 10888
 
 	# Prompt user for server address
@@ -197,8 +197,8 @@ class ndnMouseClientUDP():
 			pyautogui.moveTo(x, y, self.transition_time)
 
 	# Handle two-finger scroll commands
-	# Format of commands:  S<y-4B>
-	#   b"S\x00\x00\x00\x19"	(scroll 25 up)
+	# Format of commands:  S<x-4B><y-4B>
+	#   b"S\xff\xff\xff\xb5\x00\x00\x00\x19"	(scroll 75 right, 25 up)
 	def _handleScroll(self, data):
 		move_type = data[:1]
 		x = intFromBytes(data[1:5])
@@ -363,6 +363,8 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 				# Handle different commands
 				if msg.startswith(b"M") or msg.startswith(b"A"):
 					self._handleMove(msg)
+				elif msg.startswith(b"S"):
+					self._handleScroll(msg)
 				elif msg.startswith(b"C"):
 					_, click, updown = msg.decode().split('_')
 					self._handleClick(click, updown)

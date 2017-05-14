@@ -1,8 +1,6 @@
 package edu.ucla.cs.ndnmouse.utilities;
 
 import android.graphics.Point;
-import android.os.Parcel;
-import android.os.Parcelable;
 import android.util.Log;
 
 import java.io.IOException;
@@ -30,8 +28,9 @@ public class ServerUDP implements Runnable, Server {
     DatagramSocket mSocket;                         // UDP socket used to send and receive
     final int mPort;                                // Port number (always 10888)
     boolean mServerIsRunning = false;               // Helps start and stop the server main thread
-    float mSensitivity;                             // Sensitivity multiplier for relative movement
-    boolean mScrollingInverted = false;             // Inverts the two-finger scroll direction if true
+    float mMoveSensitivity;                         // Sensitivity multiplier for relative movement
+    boolean mScrollInverted;                        // Inverts the two-finger scroll direction if true
+    float mScrollSensitivity;                       // Sensitivity multiplier for scrolling movement
 
     private HashMap<InetAddress, WorkerThread> mClientThreads;    // Holds all active worker threads that are servicing clients
 
@@ -39,13 +38,15 @@ public class ServerUDP implements Runnable, Server {
      * Constructor for server
      * @param activity of the caller (so we can get position points)
      * @param port number for server to listen on
-     * @param sensitivity multiplier for scaling movement
+     * @param moveSensitivity multiplier for scaling movement
      */
-    public ServerUDP(MouseActivity activity, int port, float sensitivity) {
+    public ServerUDP(MouseActivity activity, int port, float moveSensitivity, boolean scrollInverted, float scrollSensitivity) {
         mMouseActivity = activity;
         mPort = port;
         mClientThreads = new HashMap<>();
-        mSensitivity = sensitivity;
+        mMoveSensitivity = moveSensitivity;
+        mScrollInverted = scrollInverted;
+        mScrollSensitivity = scrollSensitivity;
     }
 
     /**
@@ -194,7 +195,13 @@ public class ServerUDP implements Runnable, Server {
     public <T> void UpdateSettings(int key, T value) {
         switch (key) {
             case R.string.pref_sensitivity_key:
-                mSensitivity = (Float) value;
+                mMoveSensitivity = (Float) value;
+                break;
+            case R.string.pref_scroll_direction_key:
+                mScrollInverted = (Boolean) value;
+                break;
+            case R.string.pref_scroll_sensitivity_key:
+                mScrollSensitivity = (Float) value;
                 break;
             default:
                 Log.e(TAG, "Error: setting to update not recognized!");
@@ -266,34 +273,35 @@ public class ServerUDP implements Runnable, Server {
                 while (mWorkerIsRunning) {
                     // Don't send too many updates (may require tuning)
                     Thread.sleep(mUpdateIntervalMillis);
-                    // String moveType = mMouseActivity.getString(R.string.protocol_move_relative);
-                    String moveType = mMouseActivity.getMoveType();
                     Point position = mMouseActivity.getRelativePosition();
-
                     // Skip update if no relative movement since last update
                     if (position.equals(0, 0))
                         continue;
 
-                    // Find scaled x and y position according to sensitivity
-                    int scaledX = (int) (position.x * mSensitivity);
-                    int scaledY = (int) (position.y * mSensitivity);
+                    String moveType = mMouseActivity.getMoveType();
+                    boolean scrollActivated = moveType.equals(mMouseActivity.getString(R.string.protocol_move_scrolling));
 
-                    // Build reply message and send out socket
-                    byte[] reply;
-                    if (moveType.equals(mMouseActivity.getString(R.string.protocol_move_relative)))
-                        reply = NetworkHelpers.buildMoveMessage(moveType, scaledX, scaledY);
-                    else {
-                        if (!mScrollingInverted) {
+                    // Find scaled x and y position according to appropriate sensitivity
+                    int scaledX, scaledY;
+                    if (scrollActivated) {
+                        scaledX = (int) (position.x * mScrollSensitivity);
+                        scaledY = (int) (position.y * mScrollSensitivity);
+                        if (!mScrollInverted) {
                             scaledX = -scaledX;
                             scaledY = -scaledY;
                         }
-                        reply = NetworkHelpers.buildMoveMessage(moveType, scaledX, scaledY);
+                    } else {
+                        scaledX = (int) (position.x * mMoveSensitivity);
+                        scaledY = (int) (position.y * mMoveSensitivity);
                     }
-                    Log.d(TAG, "Sending update: " + new String(reply) + ", x = " + scaledX + ", y = " + scaledY);
+
+                    // Build move message
+                    byte[] msg = NetworkHelpers.buildMoveMessage(moveType, scaledX, scaledY);
+                    Log.d(TAG, "Sending update: " + new String(msg) + ", x = " + scaledX + ", y = " + scaledY);
 
                     // Build and send datagram packet
-                    DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, mReplyAddr, mReplyPort);
-                    mSocket.send(replyPacket);
+                    DatagramPacket packet = new DatagramPacket(msg, msg.length, mReplyAddr, mReplyPort);
+                    mSocket.send(packet);
                 }
             } catch (InterruptedException | IOException e) {
                 e.printStackTrace();

@@ -1,17 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <SwitchPreferenceCompat
         android:defaultValue="@bool/pref_tap_to_left_click_default"
         android:key="@string/pref_tap_to_left_click_key"
         android:title="@string/pref_tap_to_left_click_label" />
-
-    <!--<ListPreference-->
-        <!--android:defaultValue="@string/pref_movement_default"-->
-        <!--android:entries="@array/pref_movement_labels"-->
-        <!--android:entryValues="@array/pref_movement_values"-->
-        <!--android:key="@string/pref_movement_key"-->
-        <!--android:title="@string/pref_movement_label" />-->
 
     <ListPreference
         android:defaultValue="@string/pref_sensitivity_default"
@@ -25,5 +19,19 @@
         android:inputType="number"
         android:key="@string/pref_precision_key"
         android:title="@string/pref_precision_label" />
+
+    <ListPreference
+        android:defaultValue="@string/pref_scroll_direction_default"
+        android:entries="@array/pref_scroll_direction_labels"
+        android:entryValues="@array/pref_scroll_direction_values"
+        app:key="@string/pref_scroll_direction_key"
+        android:title="@string/pref_scroll_direction_label" />
+
+    <ListPreference
+        android:defaultValue="@string/pref_scroll_sensitivity_default"
+        android:entries="@array/pref_scroll_sensitivity_labels"
+        android:entryValues="@array/pref_scroll_sensitivity_values"
+        android:key="@string/pref_scroll_sensitivity_key"
+        android:title="@string/pref_scroll_sensitivity_label" />
 
 </PreferenceScreen>

@@ -43,11 +43,11 @@ public class ServerNDNSecure extends ServerNDN {
     /**
      * Constructor for server
      * @param activity of the caller (so we can get position points)
-     * @param sensitivity multiplier for scaling movement
+     * @param moveSensitivity multiplier for scaling movement
      * @param password from user
      */
-    public ServerNDNSecure(MouseActivity activity, float sensitivity, String password) {
-        super(activity, sensitivity);
+    public ServerNDNSecure(MouseActivity activity, float moveSensitivity, boolean scrollInverted, float scrollSensitivity, String password) {
+        super(activity, moveSensitivity, scrollInverted, scrollSensitivity);
 
         // mPassword = password;
         mSalt = NetworkHelpers.getNewIV().getIV();
@@ -80,15 +80,26 @@ public class ServerNDNSecure extends ServerNDN {
                         Data replyData = new Data(interest.getName());
                         replyData.getMetaInfo().setFreshnessPeriod(mFreshnessPeriod);
                         Point position = mMouseActivity.getRelativePosition();
-                        String moveType = mMouseActivity.getString(R.string.protocol_move_relative);
-
                         // Skip update if no relative movement since last update
                         if (position.equals(0, 0))
                             return;
 
-                        // Find scaled x and y position according to sensitivity (absolute movement deprecated for now)
-                        int scaledX = (int) (position.x * mSensitivity);
-                        int scaledY = (int) (position.y * mSensitivity);
+                        String moveType = mMouseActivity.getMoveType();
+                        boolean scrollActivated = moveType.equals(mMouseActivity.getString(R.string.protocol_move_scrolling));
+
+                        // Find scaled x and y position according to appropriate sensitivity
+                        int scaledX, scaledY;
+                        if (scrollActivated) {
+                            scaledX = (int) (position.x * mScrollSensitivity);
+                            scaledY = (int) (position.y * mScrollSensitivity);
+                            if (!mScrollInverted) {
+                                scaledX = -scaledX;
+                                scaledY = -scaledY;
+                            }
+                        } else {
+                            scaledX = (int) (position.x * mMoveSensitivity);
+                            scaledY = (int) (position.y * mMoveSensitivity);
+                        }
 
                         // Build reply message and set data contents
                         byte[] reply = NetworkHelpers.buildMoveMessage(moveType, scaledX, scaledY);

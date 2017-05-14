@@ -38,7 +38,9 @@ public class ServerNDN implements Runnable, Server {
     Face mFace;                                             // Reference to the NDN face we will use to serve interests
     // private final int mPort = 6363;                      // Default NFD port
     private boolean mServerIsRunning = false;               // Controls if server thread is spinning or not
-    float mSensitivity;                                     // Sensitivity multiplier for relative movement
+    float mMoveSensitivity;                                 // Sensitivity multiplier for relative movement
+    boolean mScrollInverted;                                // Inverts the two-finger scroll direction if true
+    float mScrollSensitivity;                               // Sensitivity multiplier for scrolling movement
     private final static int mUpdateIntervalMillis = 50;    // Number of milliseconds to wait before sending next update. May require tuning.
     final static double mFreshnessPeriod = 0;               // Number of milliseconds data is considered fresh. May require tuning.
 
@@ -48,9 +50,11 @@ public class ServerNDN implements Runnable, Server {
     LinkedList<Integer> mClickQueue = new LinkedList<>();           // Holds a queue of all incoming clicks that need to be sent out to client
     private KeyChain mKeyChain;                                     // Keychain reference (server identity)
 
-    public ServerNDN(MouseActivity activity, float sensitivity) {
+    public ServerNDN(MouseActivity activity, float moveSensitivity, boolean scrollInverted, float scrollSensitivity) {
         mMouseActivity = activity;
-        mSensitivity = sensitivity;
+        mMoveSensitivity = moveSensitivity;
+        mScrollInverted = scrollInverted;
+        mScrollSensitivity = scrollSensitivity;
 
         // Makes a toast to alert user to restart NFD
         mPrefixErrorHandler = new Handler(Looper.getMainLooper()) {
@@ -149,15 +153,26 @@ public class ServerNDN implements Runnable, Server {
                         Data replyData = new Data(interest.getName());
                         replyData.getMetaInfo().setFreshnessPeriod(mFreshnessPeriod);
                         Point position = mMouseActivity.getRelativePosition();
-                        String moveType = mMouseActivity.getString(R.string.protocol_move_relative);
-
                         // Skip update if no relative movement since last update
                         if (position.equals(0, 0))
                             return;
 
-                        // Find scaled x and y position according to sensitivity (absolute movement deprecated for now)
-                        int scaledX = (int) (position.x * mSensitivity);
-                        int scaledY = (int) (position.y * mSensitivity);
+                        String moveType = mMouseActivity.getMoveType();
+                        boolean scrollActivated = moveType.equals(mMouseActivity.getString(R.string.protocol_move_scrolling));
+
+                        // Find scaled x and y position according to appropriate sensitivity
+                        int scaledX, scaledY;
+                        if (scrollActivated) {
+                            scaledX = (int) (position.x * mScrollSensitivity);
+                            scaledY = (int) (position.y * mScrollSensitivity);
+                            if (!mScrollInverted) {
+                                scaledX = -scaledX;
+                                scaledY = -scaledY;
+                            }
+                        } else {
+                            scaledX = (int) (position.x * mMoveSensitivity);
+                            scaledY = (int) (position.y * mMoveSensitivity);
+                        }
 
                         // Build reply message and set data contents
                         byte[] reply = NetworkHelpers.buildMoveMessage(moveType, scaledX, scaledY);
@@ -240,7 +255,13 @@ public class ServerNDN implements Runnable, Server {
     public <T> void UpdateSettings(int key, T value) {
         switch (key) {
             case R.string.pref_sensitivity_key:
-                mSensitivity = (Float) value;
+                mMoveSensitivity = (Float) value;
+                break;
+            case R.string.pref_scroll_direction_key:
+                mScrollInverted = (Boolean) value;
+                break;
+            case R.string.pref_scroll_sensitivity_key:
+                mScrollSensitivity = (Float) value;
                 break;
             default:
                 Log.e(TAG, "Error: setting to update not recognized!");

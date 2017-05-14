@@ -170,7 +170,7 @@ public class NetworkHelpers {
      * Format of message:  M<x-4B><y-4B>
      *     b"A\x00\x00\x01\x90\x00\x00\x01\xf4"	(move to absolute pixel coordinate x=400, y=500)
      *	   b"M\xff\xff\xff\xb5\x00\x00\x00\x19"	(move 75 left, 25 up relative to current pixel position)
-     *	   b"S\x00\x00\x00\x19" (scroll 25 up)
+     *	   b"S\xff\xff\xff\xb5\x00\x00\x00\x19"	(scroll 75 right, 25 up)
      * @param moveType one character representing move type
      * @param x pixels
      * @param y pixels

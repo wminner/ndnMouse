@@ -39,11 +39,11 @@ public class ServerUDPSecure extends ServerUDP {
      * Constructor for server
      * @param activity of the caller (so we can get position points)
      * @param port number for server to listen on
-     * @param sensitivity multiplier for scaling movement
+     * @param moveSensitivity multiplier for scaling movement
      * @param password from user
      */
-    public ServerUDPSecure(MouseActivity activity, int port, float sensitivity, String password) {
-        super(activity, port, sensitivity);
+    public ServerUDPSecure(MouseActivity activity, int port, float moveSensitivity, boolean scrollInverted, float scrollSensitivity, String password) {
+        super(activity, port, moveSensitivity, scrollInverted, scrollSensitivity);
 
         mPassword = password;
         try {
@@ -228,24 +228,35 @@ public class ServerUDPSecure extends ServerUDP {
                     // Don't send too many updates (may require tuning)
                     Thread.sleep(mUpdateIntervalMillis);
                     Point position = mMouseActivity.getRelativePosition();
-                    String moveType = mMouseActivity.getString(R.string.protocol_move_relative);
-
                     // Skip update if no relative movement since last update
                     if (position.equals(0, 0))
                         continue;
 
-                    // Find scaled x and y position according to sensitivity
-                    int scaledX = (int) (position.x * mSensitivity);
-                    int scaledY = (int) (position.y * mSensitivity);
+                    String moveType = mMouseActivity.getMoveType();
+                    boolean scrollActivated = moveType.equals(mMouseActivity.getString(R.string.protocol_move_scrolling));
 
-                    // Build reply message, create mouse packet from it, and send out encrypted reply
+                    // Find scaled x and y position according to appropriate sensitivity
+                    int scaledX, scaledY;
+                    if (scrollActivated) {
+                        scaledX = (int) (position.x * mScrollSensitivity);
+                        scaledY = (int) (position.y * mScrollSensitivity);
+                        if (!mScrollInverted) {
+                            scaledX = -scaledX;
+                            scaledY = -scaledY;
+                        }
+                    } else {
+                        scaledX = (int) (position.x * mMoveSensitivity);
+                        scaledY = (int) (position.y * mMoveSensitivity);
+                    }
+
+                    // Build move message, create mouse packet from it, and send out encrypted reply
                     byte[] msg = NetworkHelpers.buildMoveMessage(moveType, scaledX, scaledY);
                     try {
                         MousePacket mousePacket = new MousePacket(msg, getNextSeqNum(), mKey);
-                        byte[] encryptedReply = mousePacket.getEncryptedPacket();
-                        Log.d(TAG, "Sending update: " + Arrays.toString(encryptedReply));
-                        DatagramPacket replyPacket = new DatagramPacket(encryptedReply, encryptedReply.length, mReplyAddr, mReplyPort);
-                        mSocket.send(replyPacket);
+                        byte[] encryptedMsg = mousePacket.getEncryptedPacket();
+                        Log.d(TAG, "Sending update: " + Arrays.toString(encryptedMsg));
+                        DatagramPacket packet = new DatagramPacket(encryptedMsg, encryptedMsg.length, mReplyAddr, mReplyPort);
+                        mSocket.send(packet);
 
                     } catch (ShortBufferException | InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
                         e.printStackTrace();
