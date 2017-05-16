@@ -238,7 +238,9 @@ public class ServerUDP implements Runnable, Server {
          */
         void start() {
             mWorkerIsRunning = true;
-            new Thread(this).start();
+            Thread thread = new Thread(this);
+            // thread.setPriority(Thread.MAX_PRIORITY);
+            thread.start();
             Log.d(TAG, "Started worker thread for client " + mReplyAddr + ":" + mReplyPort);
         }
 

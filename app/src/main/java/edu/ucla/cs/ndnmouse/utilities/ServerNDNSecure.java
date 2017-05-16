@@ -144,13 +144,15 @@ public class ServerNDNSecure extends ServerNDN {
                         Data replyData = new Data(interest.getName());
                         replyData.getMetaInfo().setFreshnessPeriod(mFreshnessPeriod);
 
-                        // If no click has occurred, return let the interest timeout
-                        if (mClickQueue.isEmpty())
-                            return;
-
-                        // Build reply string and set data contents
-                        byte[] msg = (mMouseActivity.getString(mClickQueue.remove())).getBytes();
-                        // Log.d(TAG, "Sending update: " + replyString);
+                        byte[] msg;
+                        synchronized (mClickQueue) {
+                            // If no click has occurred, return let the interest timeout
+                            if (mClickQueue.isEmpty())
+                                return;
+                            // Build reply string and set data contents
+                            msg = (mMouseActivity.getString(mClickQueue.remove())).getBytes();
+                        }
+                        // Log.d(TAG, "Sending update: " + msg);
 
                         try {
                             // Encrypt reply

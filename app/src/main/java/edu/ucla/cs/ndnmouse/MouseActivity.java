@@ -11,6 +11,7 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
+import android.view.SoundEffectConstants;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -206,12 +207,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
+                    v.playSoundEffect(SoundEffectConstants.CLICK);
                     displayClick(getString(R.string.action_left_click_up));
-
-                } else {
-                    return false;
                 }
-                return true;
+                return false;   // Ensures that click animation will still trigger (calls default onTouch function)
             }
         });
 
@@ -233,11 +232,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
+                    v.playSoundEffect(SoundEffectConstants.CLICK);
                     displayClick(getString(R.string.action_right_click_up));
-                } else {
-                    return false;
                 }
-                return true;
+                return false;   // Ensures that click animation will still trigger (calls default onTouch function)
             }
         });
 
@@ -268,12 +266,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
+                    v.playSoundEffect(SoundEffectConstants.CLICK);
                     displayKeyPress(getString(R.string.action_keypress_spacebar_up));
-
-                } else {
-                    return false;
                 }
-                return true;
+                return false;   // Ensures that click animation will still trigger (calls default onTouch function)
             }
         });
 
@@ -295,12 +291,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
+                    v.playSoundEffect(SoundEffectConstants.CLICK);
                     displayKeyPress(getString(R.string.action_keypress_up_arrow_up));
-
-                } else {
-                    return false;
                 }
-                return true;
+                return false;   // Ensures that click animation will still trigger (calls default onTouch function)
             }
         });
 
@@ -322,12 +316,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
+                    v.playSoundEffect(SoundEffectConstants.CLICK);
                     displayKeyPress(getString(R.string.action_keypress_down_arrow_up));
-
-                } else {
-                    return false;
                 }
-                return true;
+                return false;   // Ensures that click animation will still trigger (calls default onTouch function)
             }
         });
 
@@ -349,12 +341,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
+                    v.playSoundEffect(SoundEffectConstants.CLICK);
                     displayKeyPress(getString(R.string.action_keypress_left_arrow_up));
-
-                } else {
-                    return false;
                 }
-                return true;
+                return false;   // Ensures that click animation will still trigger (calls default onTouch function)
             }
         });
 
@@ -376,12 +366,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
+                    v.playSoundEffect(SoundEffectConstants.CLICK);
                     displayKeyPress(getString(R.string.action_keypress_right_arrow_up));
-
-                } else {
-                    return false;
                 }
-                return true;
+                return false;   // Ensures that click animation will still trigger (calls default onTouch function)
             }
         });
 
@@ -396,6 +384,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
         public boolean onTouch(View v, MotionEvent event) {
             int x1 = (int) event.getX();
             int y1 = (int) event.getY();
+            boolean tapClickOccurred = false;
 
             switch (event.getActionMasked()) {
                 case MotionEvent.ACTION_DOWN:
@@ -418,6 +407,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
+                            // Helps display click text later in this method
+                            tapClickOccurred = true;
+                            // Play button click sound
+                            v.playSoundEffect(SoundEffectConstants.CLICK);
                         }
                     }
                     mTouchDown = false;
@@ -440,7 +433,11 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             }
 
             updateAbsolutePosition(x1, y1);
-            displayCoordinate((TextView) v);
+            if (tapClickOccurred)
+                displayClick(getString(R.string.action_left_click_full));
+            else
+                displayCoordinate((TextView) v);
+
             return true;
         }
     }

@@ -47,7 +47,7 @@ public class ServerNDN implements Runnable, Server {
     private Handler mPrefixErrorHandler;                            // Handles work for the UI thread (toast) when there is an error setting up prefixes
     HashMap<String, Long> mRegisteredPrefixIds = new HashMap<String, Long>();  // Keeps track of all registered prefix IDs
     boolean mPrefixRegisterError = false;                           // Tracks error during prefix registration
-    LinkedList<Integer> mClickQueue = new LinkedList<>();           // Holds a queue of all incoming clicks that need to be sent out to client
+    final LinkedList<Integer> mClickQueue = new LinkedList<>();           // Holds a queue of all incoming clicks that need to be sent out to client
     private KeyChain mKeyChain;                                     // Keychain reference (server identity)
 
     public ServerNDN(MouseActivity activity, float moveSensitivity, boolean scrollInverted, float scrollSensitivity) {
@@ -69,6 +69,7 @@ public class ServerNDN implements Runnable, Server {
     public void start() {
         mServerIsRunning = true;
         Thread thread = new Thread(this);
+        // thread.setPriority(Thread.MAX_PRIORITY);
         thread.start();
         Log.d(TAG, "Started NDN server...");
     }
@@ -209,12 +210,14 @@ public class ServerNDN implements Runnable, Server {
                         Data replyData = new Data(interest.getName());
                         replyData.getMetaInfo().setFreshnessPeriod(mFreshnessPeriod);
 
-                        // If no click has occurred, return let the interest timeout
-                        if (mClickQueue.isEmpty())
-                            return;
-
-                        // Build reply string and set data contents
-                        String replyString = mMouseActivity.getString(mClickQueue.remove());
+                        String replyString;
+                        synchronized (mClickQueue) {
+                            // If no click has occurred, return let the interest timeout
+                            if (mClickQueue.isEmpty())
+                                return;
+                            // Build reply string and set data contents
+                            replyString = mMouseActivity.getString(mClickQueue.remove());
+                        }
                         // Log.d(TAG, "Sending update: " + replyString);
                         replyData.setContent(new Blob(replyString));
 
