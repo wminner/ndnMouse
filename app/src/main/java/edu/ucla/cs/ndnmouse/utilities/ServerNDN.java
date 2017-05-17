@@ -47,7 +47,7 @@ public class ServerNDN implements Runnable, Server {
     private Handler mPrefixErrorHandler;                            // Handles work for the UI thread (toast) when there is an error setting up prefixes
     HashMap<String, Long> mRegisteredPrefixIds = new HashMap<String, Long>();  // Keeps track of all registered prefix IDs
     boolean mPrefixRegisterError = false;                           // Tracks error during prefix registration
-    final LinkedList<Integer> mClickQueue = new LinkedList<>();           // Holds a queue of all incoming clicks that need to be sent out to client
+    final LinkedList<String> mCommandQueue = new LinkedList<>();    // Holds a queue of all incoming clicks that need to be sent out to client
     private KeyChain mKeyChain;                                     // Keychain reference (server identity)
 
     public ServerNDN(MouseActivity activity, float moveSensitivity, boolean scrollInverted, float scrollSensitivity) {
@@ -200,7 +200,7 @@ public class ServerNDN implements Runnable, Server {
         mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_mouse_move), prefixId);
 
         // Prefix for click commands (asynchronous events)
-        Name prefix_click = new Name(mMouseActivity.getString(R.string.ndn_prefix_mouse_click));
+        Name prefix_click = new Name(mMouseActivity.getString(R.string.ndn_prefix_mouse_command));
         prefixId = mFace.registerPrefix(prefix_click,
                 new OnInterestCallback() {
                     @Override
@@ -211,12 +211,12 @@ public class ServerNDN implements Runnable, Server {
                         replyData.getMetaInfo().setFreshnessPeriod(mFreshnessPeriod);
 
                         String replyString;
-                        synchronized (mClickQueue) {
+                        synchronized (mCommandQueue) {
                             // If no click has occurred, return let the interest timeout
-                            if (mClickQueue.isEmpty())
+                            if (mCommandQueue.isEmpty())
                                 return;
                             // Build reply string and set data contents
-                            replyString = mMouseActivity.getString(mClickQueue.remove());
+                            replyString = mCommandQueue.remove();
                         }
                         // Log.d(TAG, "Sending update: " + replyString);
                         replyData.setContent(new Blob(replyString));
@@ -233,21 +233,30 @@ public class ServerNDN implements Runnable, Server {
                 new OnRegisterFailed() {
                     @Override
                     public void onRegisterFailed(Name name) {
-                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_click));
+                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_command));
                         mPrefixRegisterError = true;
                         Log.e(TAG, "Failed to register prefix: " + name.toUri());
                     }
                 });
-        mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_mouse_click), prefixId);
+        mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_mouse_command), prefixId);
     }
 
     /**
-     * Send a click command to all current clients
-     * @param click identifier for the type of click
+     * Send a command to all current clients
+     * @param command identifier for the type of click or keypress
      * @throws IOException for face IO error
      */
-    public void executeCommand(int click) throws IOException {
-        mClickQueue.add(click);
+    public void executeCommand(int command) throws IOException {
+        mCommandQueue.add(mMouseActivity.getString(command));
+    }
+
+    /**
+     * Send a custom type message to all current clients
+     * @param message string to type on clients
+     * @throws IOException from sending out socket/face
+     */
+    public void executeTypedMessage(String message) throws IOException {
+        mCommandQueue.add(mMouseActivity.getString(R.string.action_custom_type) + message);
     }
 
     /**

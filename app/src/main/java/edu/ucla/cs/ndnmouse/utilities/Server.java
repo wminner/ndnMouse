@@ -22,17 +22,17 @@ public interface Server {
 
     /**
      * Tells server to send a mouse click command
-     * @param click type of click (using clicks defined in strings.xml)
+     * @param command type of click (using clicks defined in strings.xml)
      * @throws IOException from sending out socket/face
      */
-    public void executeCommand(int click) throws IOException;
+    public void executeCommand(int command) throws IOException;
 
     /**
-     * Tells server to send a key press command
-     * @param keyPress type of key pressed (using key presses defined in strings.xml)
+     * Tells server to send a custom type message to all clients
+     * @param message string to type on clients
      * @throws IOException from sending out socket/face
      */
-//    public void executeKeyPress(int keyPress) throws IOException;
+    public void executeTypedMessage(String message) throws IOException;
 
     /**
      * This is called whenever settings are updated, so the server can change its behavior on the fly

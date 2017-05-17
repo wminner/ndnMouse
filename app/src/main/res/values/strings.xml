@@ -42,6 +42,13 @@
     <string name="keyboard_left_label" translatable="false">◀</string>
     <string name="keyboard_right_label" translatable="false">▶</string>
     <string name="keyboard_space_label">SPACEBAR</string>
+    <string name="keyboard_custom_type_label">…</string>
+    <string name="keyboard_delete_label">⌫</string>
+    <string name="keyboard_return_label">⏎</string>
+    <string name="keyboard_escape_label">ESC</string>
+    <string name="keyboard_custom_type_alert_title">Custom Typed Message</string>
+    <string name="keyboard_custom_type_alert_message">Enter a string to type on client devices</string>
+    <string name="action_custom_type" translatable="false">T</string>
     <string name="action_keypress_up_arrow_down" translatable="false">K_up_D</string>
     <string name="action_keypress_up_arrow_up" translatable="false">K_up_U</string>
     <string name="action_keypress_down_arrow_down" translatable="false">K_down_D</string>
@@ -52,7 +59,12 @@
     <string name="action_keypress_right_arrow_up" translatable="false">K_right_U</string>
     <string name="action_keypress_spacebar_down" translatable="false">K_space_D</string>
     <string name="action_keypress_spacebar_up" translatable="false">K_space_U</string>
-    <string name="action_type_string" translatable="false">T</string>
+    <string name="action_keypress_return_down" translatable="false">K_return_D</string>
+    <string name="action_keypress_return_up" translatable="false">K_return_U</string>
+    <string name="action_keypress_delete_down" translatable="false">K_bspace_D</string>
+    <string name="action_keypress_delete_up" translatable="false">K_bspace_U</string>
+    <string name="action_keypress_escape_down" translatable="false">K_esc_D</string>
+    <string name="action_keypress_escape_up" translatable="false">K_esc_U</string>
 
     <!--Settings Activity-->
     <string name="pref_tap_to_left_click_label">Tap to Left Click</string>
@@ -97,7 +109,7 @@
 
     <!--ServerNDN-->
     <string name="ndn_prefix_mouse_move" translatable="false">/ndnmouse/move</string>
-    <string name="ndn_prefix_mouse_click" translatable="false">/ndnmouse/click</string>
+    <string name="ndn_prefix_mouse_command" translatable="false">/ndnmouse/command</string>
     <string name="ndn_prefix_update_seq" translatable="false">/ndnmouse/seq</string>
     <string name="ndn_prefix_salt" translatable="false">/ndnmouse/salt</string>
     <string name="ndn_prefix_identity" translatable="false">/ndnmouse/identity</string>

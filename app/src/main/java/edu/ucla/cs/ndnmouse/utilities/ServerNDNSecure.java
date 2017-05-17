@@ -134,7 +134,7 @@ public class ServerNDNSecure extends ServerNDN {
         mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_mouse_move), prefixId);
 
         // Prefix for click commands (asynchronous events)
-        Name prefix_click = new Name(mMouseActivity.getString(R.string.ndn_prefix_mouse_click));
+        Name prefix_click = new Name(mMouseActivity.getString(R.string.ndn_prefix_mouse_command));
         prefixId = mFace.registerPrefix(prefix_click,
                 new OnInterestCallback() {
                     @Override
@@ -145,12 +145,12 @@ public class ServerNDNSecure extends ServerNDN {
                         replyData.getMetaInfo().setFreshnessPeriod(mFreshnessPeriod);
 
                         byte[] msg;
-                        synchronized (mClickQueue) {
+                        synchronized (mCommandQueue) {
                             // If no click has occurred, return let the interest timeout
-                            if (mClickQueue.isEmpty())
+                            if (mCommandQueue.isEmpty())
                                 return;
                             // Build reply string and set data contents
-                            msg = (mMouseActivity.getString(mClickQueue.remove())).getBytes();
+                            msg = (mCommandQueue.remove()).getBytes();
                         }
                         // Log.d(TAG, "Sending update: " + msg);
 
@@ -176,12 +176,12 @@ public class ServerNDNSecure extends ServerNDN {
                 new OnRegisterFailed() {
                     @Override
                     public void onRegisterFailed(Name name) {
-                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_click));
+                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_command));
                         mPrefixRegisterError = true;
                         Log.e(TAG, "Failed to register prefix: " + name.toUri());
                     }
                 });
-        mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_mouse_click), prefixId);
+        mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_mouse_command), prefixId);
 
         // Prefix for seq num updates (special interest for cases of desync only)
         Name prefix_update_seq = new Name(mMouseActivity.getString(R.string.ndn_prefix_update_seq));
@@ -245,7 +245,7 @@ public class ServerNDNSecure extends ServerNDN {
                 new OnRegisterFailed() {
                     @Override
                     public void onRegisterFailed(Name name) {
-                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_click));
+                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_command));
                         mPrefixRegisterError = true;
                         Log.e(TAG, "Failed to register prefix: " + name.toUri());
                     }
@@ -283,7 +283,7 @@ public class ServerNDNSecure extends ServerNDN {
                 new OnRegisterFailed() {
                     @Override
                     public void onRegisterFailed(Name name) {
-                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_click));
+                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_command));
                         mPrefixRegisterError = true;
                         Log.e(TAG, "Failed to register prefix: " + name.toUri());
                     }

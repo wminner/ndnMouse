@@ -137,14 +137,29 @@ public class ServerUDP implements Runnable, Server {
     }
 
     /**
-     * Send a click command to all current clients
-     * @param command identifier for the type of click
-     * @throws IOException for socket IO error
+     * Send a command to all current clients
+     * @param command identifier for the type of click or keypress
+     * @throws IOException from sending out socket/face
      */
     public void executeCommand(int command) throws IOException {
         for (WorkerThread client : mClientThreads.values()) {
             if (null != client.mReplyAddr && 0 != client.mReplyPort) {
                 byte[] reply = (mMouseActivity.getString(command)).getBytes();
+                DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, client.mReplyAddr, client.mReplyPort);
+                mSocket.send(replyPacket);
+            }
+        }
+    }
+
+    /**
+     * Send a custom type message to all current clients
+     * @param message string to type on clients
+     * @throws IOException from sending out socket/face
+     */
+    public void executeTypedMessage(String message) throws IOException {
+        for (WorkerThread client : mClientThreads.values()) {
+            if (null != client.mReplyAddr && 0 != client.mReplyPort) {
+                byte[] reply = (mMouseActivity.getString(R.string.action_custom_type) + message).getBytes();
                 DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, client.mReplyAddr, client.mReplyPort);
                 mSocket.send(replyPacket);
             }

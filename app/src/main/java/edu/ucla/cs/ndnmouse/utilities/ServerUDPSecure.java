@@ -1,6 +1,7 @@
 package edu.ucla.cs.ndnmouse.utilities;
 
 import android.graphics.Point;
+import android.provider.ContactsContract;
 import android.util.Log;
 
 import java.io.IOException;
@@ -159,7 +160,7 @@ public class ServerUDPSecure extends ServerUDP {
     }
 
     /**
-     * Send a click command to all current clients
+     * Send a command to all current clients
      * @param command identifier for the type of click
      * @throws IOException for socket IO error
      */
@@ -168,6 +169,20 @@ public class ServerUDPSecure extends ServerUDP {
         for (WorkerThreadSecure client : mClientThreads.values()) {
             if (null != client.mReplyAddr && 0 != client.mReplyPort)
                 client.executeCommand(command);
+        }
+    }
+
+    /**
+     * Send a custom type message to all current clients
+     * @param message string to type on clients
+     * @throws IOException from sending out socket/face
+     */
+    @Override
+    public void executeTypedMessage(String message) throws IOException {
+        for (WorkerThreadSecure client : mClientThreads.values()) {
+            if (null != client.mReplyAddr && 0 != client.mReplyPort) {
+                client.executeTypedMessage(message);
+            }
         }
     }
 
@@ -270,21 +285,39 @@ public class ServerUDPSecure extends ServerUDP {
         }
 
         /**
-         * Executes click for this specific server/client session
-         * @param click type
-         * @throws IOException when sending through socket
+         * Send a command to client
+         * @param command identifier for the type of click or keypress
+         * @throws IOException from sending out socket/face
          */
-        void executeCommand(int click) throws IOException {
+        void executeCommand(int command) throws IOException {
             // Build reply message, create mouse packet from it, and send out encrypted reply
-            byte[] msg = (mMouseActivity.getString(click)).getBytes();
+            byte[] data = (mMouseActivity.getString(command)).getBytes();
             try {
-                MousePacket mousePacket = new MousePacket(msg, getNextSeqNum(), mKey);
-                byte[] encryptedReply = mousePacket.getEncryptedPacket();
-                DatagramPacket replyPacket = new DatagramPacket(encryptedReply, encryptedReply.length, mReplyAddr, mReplyPort);
-                mSocket.send(replyPacket);
+                MousePacket mousePacket = new MousePacket(data, getNextSeqNum(), mKey);
+                byte[] encryptedData = mousePacket.getEncryptedPacket();
+                DatagramPacket packet = new DatagramPacket(encryptedData, encryptedData.length, mReplyAddr, mReplyPort);
+                mSocket.send(packet);
             } catch (InvalidAlgorithmParameterException | InvalidKeyException | ShortBufferException | BadPaddingException | IllegalBlockSizeException e) {
                 e.printStackTrace();
-                Log.e(TAG, "Error encrypting mouse click!");
+                Log.e(TAG, "Error encrypting mouse command!");
+            }
+        }
+
+        /**
+         * Send a custom type message to client
+         * @param message string to type on client
+         * @throws IOException from sending out socket/face
+         */
+        void executeTypedMessage(String message) throws IOException {
+            byte[] data = (mMouseActivity.getString(R.string.action_custom_type) + message).getBytes();
+            try {
+                MousePacket mousePacket = new MousePacket(data, getNextSeqNum(), mKey);
+                byte[] encryptedData = mousePacket.getEncryptedPacket();
+                DatagramPacket packet = new DatagramPacket(encryptedData, encryptedData.length, mReplyAddr, mReplyPort);
+                mSocket.send(packet);
+            } catch (InvalidAlgorithmParameterException | InvalidKeyException | ShortBufferException | BadPaddingException | IllegalBlockSizeException e) {
+                e.printStackTrace();
+                Log.e(TAG, "Error encrypting custom typed message!");
             }
         }
 

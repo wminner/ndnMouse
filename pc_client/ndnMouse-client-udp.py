@@ -92,7 +92,7 @@ class ndnMouseClientUDP():
 				msg, server = self.sock.recvfrom(self.packet_bytes)
 				logging.info("Received message: {0}".format(msg))
 
-				if msg.startswith(b"BEAT"):
+				if msg.startswith(b"BEAT") or self._handle(msg):
 					got_timeout = False
 					# Reset refresh attempts
 					self.refresh_attempts = 0
@@ -130,20 +130,7 @@ class ndnMouseClientUDP():
 				continue
 
 			logging.info("Received message: {0}".format(msg))
-			
-			# Handle different commands
-			if msg.startswith(b"M") or msg.startswith(b"A"):
-				self._handleMove(msg)
-			elif msg.startswith(b"S"):
-				self._handleScroll(msg)
-			elif msg.startswith(b"C"):
-				_, click, updown = msg.decode().split('_')
-				self._handleClick(click, updown)
-			elif msg.startswith(b"K"):
-				_, keypress, updown = msg.decode().split('_')
-				self._handleKeypress(keypress, updown)
-			else:
-				logging.error("Bad command received. Password on server?")
+			self._handle(msg)
 
 
 	# Shutdown the server
@@ -158,6 +145,28 @@ class ndnMouseClientUDP():
 	# Handle Mouse Functions
 	############################################################################
 
+	# General handler
+	# Returns true if message could be handled, otherwise false
+	def _handle(self, msg):
+		if msg.startswith(b"M") or msg.startswith(b"A"):
+			self._handleMove(msg)
+		elif msg.startswith(b"S"):
+			self._handleScroll(msg)
+		elif msg.startswith(b"C"):
+			_, click, updown = msg.decode().split('_')
+			self._handleClick(click, updown)
+		elif msg.startswith(b"K"):
+			_, keypress, updown = msg.decode().split('_')
+			self._handleKeypress(keypress, updown)
+		elif msg.startswith(b"T"):
+			self._handleTypeMessage(msg)
+		elif msg.startswith(b"BEAT"):
+			pass  # Ignore, out of order heartbeat response
+		else:
+			logging.error("Bad command received. Password on server?")
+			return False
+		return True
+
 	# Handle click commands
 	def _handleClick(self, click, updown):
 		if updown == "U":  	# UP
@@ -171,6 +180,10 @@ class ndnMouseClientUDP():
 
 	# Handle keypress commands
 	def _handleKeypress(self, keypress, updown):
+		# Decompress certain longer commands
+		if keypress == "bspace":
+			keypress = "backspace"
+
 		if updown == "U":	# UP
 			pyautogui.keyUp(keypress)
 		elif updown == "D":	# DOWN
@@ -180,6 +193,12 @@ class ndnMouseClientUDP():
 		else:
 			logging.error("Invalid keypress type: {0} {1}".format(keypress, updown))
 
+	# Handle custom typed message
+	# Format of commands:  T<msg-to-type> (msg-to-type can be up to 10B)
+	#   b"Thello"	(type "hello" on client)
+	def _handleTypeMessage(self, msg):
+		type_string = msg.decode()[1:]
+		pyautogui.typewrite(type_string)
 
 	# Handle movement commands
 	# Format of commands:  M<x-4B><y-4B>
@@ -341,8 +360,10 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 			try:
 				data, server = self.sock.recvfrom(self.packet_bytes)
 			except socket.timeout:
+				# Try to refresh connection (heartbeat) until failed too many times
 				if self.refresh_attempts < self.max_refresh_attempts:
 					self._refreshConnection()
+				# Give up on heartbeat and just try to reopen connection
 				else:
 					self._openConnection()
 				continue
@@ -359,20 +380,7 @@ class ndnMouseClientUDPSecure(ndnMouseClientUDP):
 			if server_seq_num > self.seq_num or self.seq_num == self.max_seq_num:
 				self.seq_num = server_seq_num
 				msg = decrypted[self.seq_num_bytes:]
-			
-				# Handle different commands
-				if msg.startswith(b"M") or msg.startswith(b"A"):
-					self._handleMove(msg)
-				elif msg.startswith(b"S"):
-					self._handleScroll(msg)
-				elif msg.startswith(b"C"):
-					_, click, updown = msg.decode().split('_')
-					self._handleClick(click, updown)
-				elif msg.startswith(b"K"):
-					_, keypress, updown = msg.decode().split('_')
-					self._handleKeypress(keypress, updown)
-				else:
-					logging.error("Bad command received. Wrong password?")
+				self._handle(msg)
 
 
 	# Shutdown the server

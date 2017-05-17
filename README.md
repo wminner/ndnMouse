@@ -11,7 +11,9 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 * Mouse control: movement, left click, right click, tap-to-click
 * Mouse movement sensitivity and precision settings
 * Two-finger scrolling, with inversion and sensitivity settings
-* Rudimentary keyboard support (for slideshow control)
+* Rudimentary keyboard support 
+	* Common slideshow control buttons
+	* Custom typed messages (see ellipses button)
 * UDP and NDN support
 * Security:
 	* AES cipher block chaining with random IVs for each message
@@ -56,8 +58,8 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 
 # Screenshots
 
-<img src="docs/screenshots/start.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/touchpad.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/keyboard.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/settings.png" width="205"/>
-<img src="docs/screenshots/client1.png" width="430"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/client2.png" width="430"/>
+<img src="docs/screenshots/start.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/touchpad.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/keyboard.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/custom_type_message.png" width="205"/>
+<img src="docs/screenshots/settings.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/client1.png" width="430"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/client2.png" width="430"/>
 <img src="docs/screenshots/client3.png" width="430"/>
 
 # License

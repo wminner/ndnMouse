@@ -1,8 +1,10 @@
 package edu.ucla.cs.ndnmouse;
 
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Point;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.preference.PreferenceManager;
@@ -13,15 +15,20 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.SoundEffectConstants;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.ViewFlipper;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import javax.crypto.spec.SecretKeySpec;
 
@@ -65,6 +72,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
     private static final int mScrollVerticalDiffThreshold = 200;// Pixel threshold for vertical difference between two fingers to activate scrolling
     private boolean mScrollInverted;                            // Scrolling movement is inverted if true
     private Float mScrollSensitivity;                           // Scrolling movement sensitivity multiplier
+
+    // Keyboard typing variables
+    private String mTypeString;
+    private static final int mMaxCustomTypeChars = 10;
 
     // Password variables
     private static String mPassword;                            // User entered password
@@ -373,6 +384,137 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             }
         });
 
+        // Return button
+        final Button returnButton = (Button) findViewById(R.id.b_return);
+        returnButton.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    try {
+                        mServer.executeCommand(R.string.action_keypress_return_down);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    displayKeyPress(getString(R.string.action_keypress_return_down));
+                } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    try {
+                        mServer.executeCommand(R.string.action_keypress_return_up);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    v.playSoundEffect(SoundEffectConstants.CLICK);
+                    displayKeyPress(getString(R.string.action_keypress_return_up));
+                }
+                return false;   // Ensures that click animation will still trigger (calls default onTouch function)
+            }
+        });
+
+        // Delete button
+        final Button deleteButton = (Button) findViewById(R.id.b_delete);
+        deleteButton.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    try {
+                        mServer.executeCommand(R.string.action_keypress_delete_down);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    displayKeyPress(getString(R.string.action_keypress_delete_down));
+                } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    try {
+                        mServer.executeCommand(R.string.action_keypress_delete_up);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    v.playSoundEffect(SoundEffectConstants.CLICK);
+                    displayKeyPress(getString(R.string.action_keypress_delete_up));
+                }
+                return false;   // Ensures that click animation will still trigger (calls default onTouch function)
+            }
+        });
+
+        // Escape button
+        final Button escapeButton = (Button) findViewById(R.id.b_escape);
+        escapeButton.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    try {
+                        mServer.executeCommand(R.string.action_keypress_escape_down);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    displayKeyPress(getString(R.string.action_keypress_escape_down));
+                } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    try {
+                        mServer.executeCommand(R.string.action_keypress_escape_up);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    v.playSoundEffect(SoundEffectConstants.CLICK);
+                    displayKeyPress(getString(R.string.action_keypress_escape_up));
+                }
+                return false;   // Ensures that click animation will still trigger (calls default onTouch function)
+            }
+        });
+
+        // Custom type button (shows EditText dialog for typing)
+        final Button customTypeButton = (Button) findViewById(R.id.b_custom_type);
+        customTypeButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(MouseActivity.this);
+                builder.setTitle(getString(R.string.keyboard_custom_type_alert_title));
+                builder.setMessage(getString(R.string.keyboard_custom_type_alert_message));
+
+                final EditText input = new EditText(MouseActivity.this);
+                builder.setView(input);
+
+                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        // Get input text
+                        String message = input.getText().toString();
+                        if (message.isEmpty())
+                            return;
+
+                        // Split message into smaller chunks if doesn't fit in one packet (10B/packet)
+                        List<String> subMessages = new ArrayList<String>();
+                        int i = 0;
+                        while (i < message.length()) {
+                            subMessages.add(message.substring(i, Math.min(i + mMaxCustomTypeChars, message.length())));
+                            i += mMaxCustomTypeChars;
+                        }
+
+                        // Send typed message(s)
+                        for (int j = 0; j < subMessages.size(); j++) {
+                            try {
+                                mServer.executeTypedMessage(subMessages.get(j));
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+
+                        // Toast to tell user that message was sent
+                        Toast.makeText(MouseActivity.this, "Message sent to clients.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+                builder.setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        // Do nothing
+                        dialog.cancel();
+                    }
+                });
+
+                AlertDialog alertDialog = builder.create();
+                alertDialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+                alertDialog.show();
+            }
+        });
+
         mKeyboardTouchpadTextView.setOnTouchListener(new TouchpadListener());
     }
 
@@ -441,6 +583,61 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             return true;
         }
     }
+
+//    /**
+//     * On Click Listener for multiple custom type buttons on MouseActivity
+//     */
+//    private class CustomTypeClickListener implements View.OnClickListener {
+//        @Override
+//        public void onClick(View v) {
+//            AlertDialog.Builder alert = new AlertDialog.Builder(MouseActivity.this);
+//            alert.setTitle(getString(R.string.keyboard_custom_type_alert_title));
+//            alert.setMessage(getString(R.string.keyboard_custom_type_alert_message));
+//
+//            final EditText input = new EditText(MouseActivity.this);
+//            alert.setView(input);
+//
+//            alert.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+//                @Override
+//                public void onClick(DialogInterface dialog, int which) {
+//                    // Get input text
+//                    String message = input.getText().toString();
+//                    if (message.isEmpty())
+//                        return;
+//
+//                    // Split message into smaller chunks if doesn't fit in one packet (10B/packet)
+//                    List<String> subMessages = new ArrayList<String>();
+//                    int i = 0;
+//                    while (i < message.length()) {
+//                        subMessages.add(message.substring(i, Math.min(i + mMaxCustomTypeChars, message.length())));
+//                        i += mMaxCustomTypeChars;
+//                    }
+//
+//                    // Send typed message(s)
+//                    for (int j = 0; j < subMessages.size(); j++) {
+//                        try {
+//                            mServer.executeTypedMessage(subMessages.get(j));
+//                        } catch (IOException e) {
+//                            e.printStackTrace();
+//                        }
+//                    }
+//
+//                    // Toast to tell user that message was sent
+//                    Toast.makeText(MouseActivity.this, "Message sent to clients.", Toast.LENGTH_SHORT).show();
+//                }
+//            });
+//
+//            alert.setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {
+//                @Override
+//                public void onClick(DialogInterface dialog, int which) {
+//                    // Do nothing
+//                    dialog.cancel();
+//                }
+//            });
+//
+//            alert.show();
+//        }
+//    }
 
     /**
      * Update mAbsPos variable if the new position is different enough from the previous position

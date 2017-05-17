@@ -45,11 +45,11 @@
     </string-array>
 
     <string-array name="pref_scroll_sensitivity_values">
+        <item>.12</item>
         <item>.25</item>
         <item>.5</item>
         <item>1</item>
         <item>1.5</item>
-        <item>2</item>
     </string-array>
 
 </resources>

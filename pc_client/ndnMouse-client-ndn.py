@@ -83,7 +83,7 @@ class ndnMouseClientNDN():
 		interest_move.setMustBeFresh(True)
 
 		# Make interest to get click data
-		interest_click = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/click"))
+		interest_click = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/command"))
 		interest_click.setInterestLifetimeMilliseconds(self.interest_timeout)
 		interest_click.setMustBeFresh(True)
 
@@ -110,18 +110,7 @@ class ndnMouseClientNDN():
 	def _onData(self, interest, data):
 		msg = bytes(data.getContent().buf())
 		try:			
-			# Handle different commands
-			if msg.startswith(b"M") or msg.startswith(b"A"):
-				self._handleMove(msg)
-			elif msg.startswith(b"S"):
-				self._handleScroll(msg)
-			elif msg.startswith(b"C"):
-				_, click, updown = msg.decode().split('_')
-				self._handleClick(click, updown)
-			elif msg.startswith(b"K"):
-				_, keypress, updown = msg.decode().split('_')
-				self._handleKeypress(keypress, updown)
-
+			self._handle(msg)
 			logging.info("Got returned data from {0}: {1}".format(data.getName().toUri(), msg))
 
 		except UnicodeDecodeError:
@@ -141,6 +130,28 @@ class ndnMouseClientNDN():
 	# Handle Mouse Functions
 	############################################################################
 
+	# General handler
+	# Returns true if message could be handled, otherwise false
+	def _handle(self, msg):
+		if msg.startswith(b"M") or msg.startswith(b"A"):
+			self._handleMove(msg)
+		elif msg.startswith(b"S"):
+			self._handleScroll(msg)
+		elif msg.startswith(b"C"):
+			_, click, updown = msg.decode().split('_')
+			self._handleClick(click, updown)
+		elif msg.startswith(b"K"):
+			_, keypress, updown = msg.decode().split('_')
+			self._handleKeypress(keypress, updown)
+		elif msg.startswith(b"T"):
+			self._handleTypeMessage(msg)
+		elif msg.startswith(b"BEAT"):
+			pass  # Ignore, out of order heartbeat response
+		else:
+			logging.error("Bad command received. Password on server?")
+			return False
+		return True
+
 	# Handle click commands
 	def _handleClick(self, click, updown):
 		if updown == "U":	# Up
@@ -152,9 +163,12 @@ class ndnMouseClientNDN():
 		else:
 			logging.error("Invalid click type: {0} {1}".format(click, updown))
 
-
 	# Handle keypress commands
 	def _handleKeypress(self, keypress, updown):
+		# Decompress certain longer commands
+		if keypress == "bspace":
+			keypress = "backspace"
+
 		if updown == "U":	# UP
 			pyautogui.keyUp(keypress)
 		elif updown == "D":	# DOWN
@@ -164,6 +178,12 @@ class ndnMouseClientNDN():
 		else:
 			logging.error("Invalid keypress type: {0} {1}".format(keypress, updown))
 
+	# Handle custom typed message
+	# Format of commands:  T<msg-to-type> (msg-to-type can be up to 10B)
+	#   b"Thello"	(type "hello" on client)
+	def _handleTypeMessage(self, msg):
+		type_string = msg.decode()[1:]
+		pyautogui.typewrite(type_string)
 
 	# Handle movement commands
 	# Format of commands:  M<x-4B><y-4B>
@@ -250,7 +270,7 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 		interest_move.setMustBeFresh(True)
 
 		# Make interest to get click data
-		interest_click = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/click"))
+		interest_click = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/command"))
 		interest_click.setInterestLifetimeMilliseconds(self.interest_timeout)
 		interest_click.setMustBeFresh(True)
 
@@ -285,28 +305,9 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 			# If decrypted response has a valid seq num...
 			if server_seq_num > self.seq_num or self.seq_num == self.max_seq_num:
 				msg = decrypted[self.seq_num_bytes:]
-				good_cmd = True		# Goes false if could not recognize the control command
-
-				# Handle different commands
-				if msg.startswith(b"M") or msg.startswith(b"A"):
-					self._handleMove(msg)
-				elif msg.startswith(b"S"):
-					self._handleScroll(msg)
-				elif msg.startswith(b"C"):
-					_, click, updown = msg.decode().split('_')
-					self._handleClick(click, updown)
-				elif msg.startswith(b"K"):
-					_, keypress, updown = msg.decode().split('_')
-					self._handleKeypress(keypress, updown)
-				else:
-					logging.error("Bad response data received. Wrong password?")
-					good_cmd = False
-					self.bad_response_count += 1
-					if self.bad_response_count > self.max_bad_responses:
-						self._syncWithServer()
 
 				# Only update seq num if we handled the command, also reset bad response count
-				if good_cmd:
+				if self._handle(msg):
 					self.seq_num = server_seq_num
 					self.bad_response_count = 0
 
@@ -444,6 +445,32 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 		# Reset bad response count and sync is complete
 		self.bad_response_count = 0
 		self.pending_sync = False
+
+	# General handler
+	# Returns true if message could be handled, otherwise false
+	def _handle(self, msg):
+		if msg.startswith(b"M") or msg.startswith(b"A"):
+			self._handleMove(msg)
+		elif msg.startswith(b"S"):
+			self._handleScroll(msg)
+		elif msg.startswith(b"C"):
+			_, click, updown = msg.decode().split('_')
+			self._handleClick(click, updown)
+		elif msg.startswith(b"K"):
+			_, keypress, updown = msg.decode().split('_')
+			self._handleKeypress(keypress, updown)
+		elif msg.startswith(b"T"):
+			self._handleTypeMessage(msg)
+		elif msg.startswith(b"BEAT"):
+			pass  # Ignore, out of order heartbeat response
+		else:
+			logging.error("Bad response data received. Wrong password?")
+			self.bad_response_count += 1
+			if self.bad_response_count > self.max_bad_responses:
+				self._syncWithServer()
+			return False
+
+		return True
 
 	############################################################################
 	# Encryption Helpers
