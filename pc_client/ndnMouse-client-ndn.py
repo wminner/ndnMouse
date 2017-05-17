@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, time
+import sys, getopt, time
 import pyndn, ipaddress
 import subprocess
 import pyautogui
@@ -13,11 +13,41 @@ from Crypto.Cipher import AES
 import hashlib
 
 def main(argv):
-	LOG_FILENAME = "log.txt"
-	logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO)
-	
-	# Prompt user for server address (port is always 6363 for NFD)
+	logging_filename = "ndnMouse-log.txt"
+	logging_level = logging.ERROR
 	default_address = "192.168.1.2"
+	
+	def printUsage():
+		print("Usage: ndnMouse-client-udp.py [logging_level_flag]")
+		print("No flag specified: logging level defaults to errors only")
+		print("  -h  help/print usage")
+		print("  -d  logging level debug")
+		print("  -i  logging level info")
+		print("  -n  logging level none")
+
+	# Parse arguments
+	if len(sys.argv) != 0:
+		try:
+			opts, args = getopt.getopt(argv, "dhin")
+		except getopt.GetoptError:
+			printUsage()
+			sys.exit(2)
+
+		for opt, arg in opts:
+			if opt == '-h':
+				printUsage()
+				sys.exit()
+			elif opt in ('-d'):
+				logging_level = logging.DEBUG
+			elif opt in ('-i'):
+				logging_level = logging.INFO
+			elif opt in ('-n'):
+				logging_level = logging.CRITICAL  # critical level never used
+
+	# Set logging level based on flag provided (default to error only)
+	logging.basicConfig(filename=logging_filename, level=logging_level)
+
+	# Prompt user for server address (port is always 6363 for NFD)
 	server_address = getServerAddress(default_address)
 
 	# Prompt user for password
@@ -521,7 +551,7 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 
 # Prompt user for server address and port, and validate them
 def getServerAddress(default_addr):
-	last_ip_addr = "temp_ndnMouse.pkl"
+	last_ip_addr = "ndnMouse-temp.pkl"
 
 	# Try to get pickle of last IP address
 	try:
@@ -548,7 +578,7 @@ def getServerAddress(default_addr):
 
 # Prompt user for password, and validate it
 def getPassword():
-	password = pyautogui.password(text="Enter the server's password", title="Password", mask='*')
+	password = pyautogui.password(text="Enter the server's password (optional)", title="Password", mask='*')
 	# if not password:
 	# 	pyautogui.alert(text="Password should not be empty!", title="Invalid Password", button='Exit')
 	# 	sys.exit(1)
