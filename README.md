@@ -43,9 +43,11 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 
 1. Install NFD on your [Android phone](https://play.google.com/store/apps/details?id=net.named_data.nfd) and the [PC](http://named-data.net/doc/NFD/current/INSTALL.html) on which you want to control the mouse.
 1. Compile and install the app using Android Studio on your Android phone.
-1. On your PC, install Python3 and pip3. Then install the two Python libraries: PyAutoGUI, pycrypto, and PyNDN.
+1. On your PC, install Python3 and pip3. If necessary install dependencies for PyAutoGUI. Then install the Python libraries: PyAutoGUI, pycrypto, and PyNDN.
 	1. Python3 and pip3 (to help install Python libraries): `sudo apt-get install python3 python3-pip`
-	1. On OSX, you may need to install Quartz (a dependency of PyAutoGUI): `sudo pip3 install pyobjc-framework-Quartz`
+	1. Depending on your PC's operating system, PyAutoGUI has some dependencies: 
+		1. On OSX, install Quartz: `sudo pip3 install pyobjc-framework-Quartz`
+		1. On Linux, install Xlib and Tkinter: `sudo apt-get install python3-xlib python3-tk`
 	1. PyAutoGUI, pycrypto, and PyNDN: `sudo pip3 install pyautogui pycrypto pyndn`
 
 ### Running
