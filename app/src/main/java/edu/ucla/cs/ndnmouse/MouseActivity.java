@@ -211,7 +211,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-                    displayClick(getString(R.string.action_left_click_down));
+                    displayClick(mTouchpadTextView, getString(R.string.action_left_click_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
                     try {
                         mServer.executeCommand(R.string.action_left_click_up);
@@ -219,7 +219,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                         e.printStackTrace();
                     }
                     v.playSoundEffect(SoundEffectConstants.CLICK);
-                    displayClick(getString(R.string.action_left_click_up));
+                    displayClick(mTouchpadTextView, getString(R.string.action_left_click_up));
                 }
                 return false;   // Ensures that click animation will still trigger (calls default onTouch function)
             }
@@ -236,7 +236,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-                    displayClick(getString(R.string.action_right_click_down));
+                    displayClick(mTouchpadTextView, getString(R.string.action_right_click_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
                     try {
                         mServer.executeCommand(R.string.action_right_click_up);
@@ -244,7 +244,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                         e.printStackTrace();
                     }
                     v.playSoundEffect(SoundEffectConstants.CLICK);
-                    displayClick(getString(R.string.action_right_click_up));
+                    displayClick(mTouchpadTextView, getString(R.string.action_right_click_up));
                 }
                 return false;   // Ensures that click animation will still trigger (calls default onTouch function)
             }
@@ -576,68 +576,13 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
             updateAbsolutePosition(x1, y1);
             if (tapClickOccurred)
-                displayClick(getString(R.string.action_left_click_full));
+                displayClick((TextView) v, getString(R.string.action_left_click_full));
             else
                 displayCoordinate((TextView) v);
 
             return true;
         }
     }
-
-//    /**
-//     * On Click Listener for multiple custom type buttons on MouseActivity
-//     */
-//    private class CustomTypeClickListener implements View.OnClickListener {
-//        @Override
-//        public void onClick(View v) {
-//            AlertDialog.Builder alert = new AlertDialog.Builder(MouseActivity.this);
-//            alert.setTitle(getString(R.string.keyboard_custom_type_alert_title));
-//            alert.setMessage(getString(R.string.keyboard_custom_type_alert_message));
-//
-//            final EditText input = new EditText(MouseActivity.this);
-//            alert.setView(input);
-//
-//            alert.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-//                @Override
-//                public void onClick(DialogInterface dialog, int which) {
-//                    // Get input text
-//                    String message = input.getText().toString();
-//                    if (message.isEmpty())
-//                        return;
-//
-//                    // Split message into smaller chunks if doesn't fit in one packet (10B/packet)
-//                    List<String> subMessages = new ArrayList<String>();
-//                    int i = 0;
-//                    while (i < message.length()) {
-//                        subMessages.add(message.substring(i, Math.min(i + mMaxCustomTypeChars, message.length())));
-//                        i += mMaxCustomTypeChars;
-//                    }
-//
-//                    // Send typed message(s)
-//                    for (int j = 0; j < subMessages.size(); j++) {
-//                        try {
-//                            mServer.executeTypedMessage(subMessages.get(j));
-//                        } catch (IOException e) {
-//                            e.printStackTrace();
-//                        }
-//                    }
-//
-//                    // Toast to tell user that message was sent
-//                    Toast.makeText(MouseActivity.this, "Message sent to clients.", Toast.LENGTH_SHORT).show();
-//                }
-//            });
-//
-//            alert.setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {
-//                @Override
-//                public void onClick(DialogInterface dialog, int which) {
-//                    // Do nothing
-//                    dialog.cancel();
-//                }
-//            });
-//
-//            alert.show();
-//        }
-//    }
 
     /**
      * Update mAbsPos variable if the new position is different enough from the previous position
@@ -664,10 +609,11 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
     /**
      * Function to display user's clicks on the touchpad (for debugging purposes)
+     * @param textView to display click on
      * @param click type of click, found in strings.xml
      */
-    private void displayClick(String click) {
-        mTouchpadTextView.setText(getString(R.string.touchpad_label) + "\n(" + click + ")");
+    private void displayClick(TextView textView, String click) {
+        textView.setText(getString(R.string.touchpad_label) + "\n(" + click + ")");
     }
 
     /**

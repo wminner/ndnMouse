@@ -29,111 +29,109 @@
         android:textSize="24sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="@+id/b_left_arrow"
-        app:layout_constraintRight_toRightOf="@+id/b_right_arrow" />
+        app:layout_constraintRight_toRightOf="@+id/b_right_arrow"
+        app:layout_constraintHorizontal_bias="0.0" />
 
     <Button
         android:id="@+id/b_right_arrow"
-        android:layout_width="75dp"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginLeft="0dp"
-        android:layout_marginStart="0dp"
-        android:layout_marginTop="0dp"
         android:text="@string/keyboard_right_label"
         android:textSize="36sp"
         app:layout_constraintLeft_toRightOf="@+id/b_down_arrow"
-        app:layout_constraintTop_toTopOf="@+id/b_down_arrow" />
+        app:layout_constraintRight_toLeftOf="@+id/b_return"
+        app:layout_constraintBottom_toBottomOf="@+id/b_down_arrow"
+        app:layout_constraintTop_toTopOf="@+id/b_down_arrow"/>
 
     <Button
         android:id="@+id/b_up_arrow"
-        android:layout_width="75dp"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="0dp"
         android:text="@string/keyboard_up_label"
         android:textSize="36sp"
         app:layout_constraintBottom_toTopOf="@+id/b_down_arrow"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent" />
+        app:layout_constraintLeft_toLeftOf="@+id/b_down_arrow"
+        app:layout_constraintRight_toRightOf="@+id/b_down_arrow"
+        app:layout_constraintTop_toBottomOf="@+id/tv_keyboard_touchpad"
+        android:layout_marginBottom="0dp" />
 
     <Button
         android:id="@+id/b_down_arrow"
-        android:layout_width="75dp"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:layout_marginLeft="0dp"
-        android:layout_marginStart="0dp"
         android:text="@string/keyboard_down_label"
         android:textSize="36sp"
+        app:layout_constraintLeft_toRightOf="@id/b_left_arrow"
+        app:layout_constraintRight_toLeftOf="@+id/b_right_arrow"
         app:layout_constraintBottom_toTopOf="@+id/b_spacebar"
-        app:layout_constraintLeft_toLeftOf="@+id/b_up_arrow" />
+        android:layout_marginBottom="8dp" />
 
     <Button
         android:id="@+id/b_left_arrow"
-        android:layout_width="75dp"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="@string/keyboard_left_label"
         android:textSize="36sp"
+        app:layout_constraintLeft_toRightOf="@+id/b_custom_type"
         app:layout_constraintRight_toLeftOf="@+id/b_down_arrow"
-        app:layout_constraintTop_toTopOf="@+id/b_down_arrow" />
+        app:layout_constraintTop_toTopOf="@+id/b_down_arrow"/>
 
     <Button
         android:id="@+id/b_return"
-        android:layout_width="75dp"
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginBottom="0dp"
-        android:layout_marginLeft="13dp"
-        android:layout_marginStart="0dp"
-        android:layout_marginTop="0dp"
         android:text="@string/keyboard_return_label"
         android:textSize="36sp"
         android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="@+id/b_right_arrow"
-        app:layout_constraintLeft_toRightOf="@+id/b_spacebar"
-        app:layout_constraintTop_toTopOf="@+id/b_right_arrow" />
+        android:layout_marginEnd="8dp"
+        android:layout_marginRight="8dp"
+        app:layout_constraintLeft_toRightOf="@+id/b_right_arrow"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/b_right_arrow"
+        app:layout_constraintBottom_toBottomOf="@+id/b_right_arrow" />
 
     <Button
         android:id="@+id/b_delete"
-        android:layout_width="75dp"
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginBottom="0dp"
-        android:layout_marginLeft="2dp"
+        android:layout_marginLeft="0dp"
         android:layout_marginStart="0dp"
-        android:layout_marginTop="0dp"
         android:text="@string/keyboard_delete_label"
         android:textSize="30sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toTopOf="@+id/b_right_arrow"
         app:layout_constraintLeft_toLeftOf="@+id/b_return"
-        app:layout_constraintTop_toTopOf="@+id/b_up_arrow"
-        app:layout_constraintVertical_bias="0.0" />
+        app:layout_constraintRight_toRightOf="@+id/b_return"
+        app:layout_constraintTop_toTopOf="@+id/b_up_arrow" />
 
     <Button
         android:id="@+id/b_escape"
-        android:layout_width="75dp"
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginBottom="0dp"
-        android:layout_marginEnd="0dp"
+        android:layout_marginLeft="0dp"
         android:layout_marginRight="0dp"
-        android:layout_marginTop="0dp"
         android:text="@string/keyboard_escape_label"
-        android:textSize="24sp"
+        android:textSize="17sp"
         app:layout_constraintBottom_toTopOf="@+id/b_left_arrow"
+        app:layout_constraintLeft_toLeftOf="@+id/b_custom_type"
         app:layout_constraintRight_toRightOf="@+id/b_custom_type"
         app:layout_constraintTop_toTopOf="@+id/b_up_arrow"
         app:layout_constraintVertical_bias="0.0" />
 
     <Button
         android:id="@+id/b_custom_type"
-        android:layout_width="75dp"
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginBottom="0dp"
-        android:layout_marginEnd="0dp"
-        android:layout_marginRight="0dp"
-        android:layout_marginTop="0dp"
         android:text="@string/keyboard_custom_type_label"
         android:textSize="36sp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="0dp"
+        android:layout_marginRight="0dp"
+        android:layout_marginLeft="8dp"
+        app:layout_constraintHorizontal_chainStyle="spread"
+        app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toLeftOf="@+id/b_left_arrow"
-        app:layout_constraintTop_toTopOf="@+id/b_left_arrow"
-        app:layout_constraintBottom_toBottomOf="@+id/b_left_arrow"
-        app:layout_constraintVertical_bias="0.0" />
+        app:layout_constraintTop_toBottomOf="@+id/b_escape"
+        app:layout_constraintBottom_toBottomOf="@+id/b_left_arrow" />
 
 </android.support.constraint.ConstraintLayout>

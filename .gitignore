@@ -7,5 +7,5 @@
 /build
 .externalNativeBuild
 
-log*
-*.pkl
+*log.txt
+*temp.pkl
