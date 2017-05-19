@@ -1,6 +1,7 @@
 package edu.ucla.cs.ndnmouse.utilities;
 
 import android.graphics.Point;
+import android.os.AsyncTask;
 import android.util.Log;
 
 import java.io.IOException;
@@ -138,31 +139,41 @@ public class ServerUDP implements Runnable, Server {
 
     /**
      * Send a command to all current clients
-     * @param command identifier for the type of click or keypress
-     * @throws IOException from sending out socket/face
+     * @param command string for the type of click or keypress
      */
-    public void executeCommand(int command) throws IOException {
-        for (WorkerThread client : mClientThreads.values()) {
-            if (null != client.mReplyAddr && 0 != client.mReplyPort) {
-                byte[] reply = (mMouseActivity.getString(command)).getBytes();
-                DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, client.mReplyAddr, client.mReplyPort);
-                mSocket.send(replyPacket);
-            }
-        }
+    public void executeCommand(int command) {
+        new SendMessageToClients().execute(mMouseActivity.getString(command));
     }
 
     /**
      * Send a custom type message to all current clients
      * @param message string to type on clients
-     * @throws IOException from sending out socket/face
      */
-    public void executeTypedMessage(String message) throws IOException {
-        for (WorkerThread client : mClientThreads.values()) {
-            if (null != client.mReplyAddr && 0 != client.mReplyPort) {
-                byte[] reply = (mMouseActivity.getString(R.string.action_custom_type) + message).getBytes();
-                DatagramPacket replyPacket = new DatagramPacket(reply, reply.length, client.mReplyAddr, client.mReplyPort);
-                mSocket.send(replyPacket);
+    public void executeTypedMessage(String message) {
+        new SendMessageToClients().execute(mMouseActivity.getString(R.string.action_custom_type) + message);
+    }
+
+    /**
+     * AsyncTask helper to send messages at all clients
+     * Needed so we don't send datagrams from the main UI thread
+     */
+    private class SendMessageToClients extends AsyncTask<String, Void, Void> {
+        @Override
+        protected Void doInBackground(String... commands) {
+            for (String command : commands) {
+                for (WorkerThread client : mClientThreads.values()) {
+                    if (null != client.mReplyAddr && 0 != client.mReplyPort) {
+                        byte[] msg = command.getBytes();
+                        DatagramPacket packet = new DatagramPacket(msg, msg.length, client.mReplyAddr, client.mReplyPort);
+                        try {
+                            mSocket.send(packet);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
             }
+            return null;
         }
     }
 

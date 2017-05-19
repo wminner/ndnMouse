@@ -37,20 +37,11 @@ public class KeyboardActivity extends AppCompatActivity {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_up_arrow_down);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_up_arrow_down);
                     displayKeyPress(getString(R.string.action_keypress_up_arrow_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_up_arrow_up);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_up_arrow_up);
                     displayKeyPress(getString(R.string.action_keypress_up_arrow_up));
-
                 } else {
                     return false;
                 }
@@ -64,18 +55,10 @@ public class KeyboardActivity extends AppCompatActivity {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_down_arrow_down);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_down_arrow_down);
                     displayKeyPress(getString(R.string.action_keypress_down_arrow_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_down_arrow_up);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_down_arrow_up);
                     displayKeyPress(getString(R.string.action_keypress_down_arrow_up));
 
                 } else {
@@ -91,18 +74,10 @@ public class KeyboardActivity extends AppCompatActivity {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_left_arrow_down);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_left_arrow_down);
                     displayKeyPress(getString(R.string.action_keypress_left_arrow_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_left_arrow_up);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_left_arrow_up);
                     displayKeyPress(getString(R.string.action_keypress_left_arrow_up));
 
                 } else {
@@ -118,20 +93,11 @@ public class KeyboardActivity extends AppCompatActivity {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_right_arrow_down);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_right_arrow_down);
                     displayKeyPress(getString(R.string.action_keypress_right_arrow_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_right_arrow_up);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_right_arrow_up);
                     displayKeyPress(getString(R.string.action_keypress_right_arrow_up));
-
                 } else {
                     return false;
                 }

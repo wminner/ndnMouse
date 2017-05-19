@@ -246,7 +246,7 @@ public class ServerNDN implements Runnable, Server {
      * @param command identifier for the type of click or keypress
      * @throws IOException for face IO error
      */
-    public void executeCommand(int command) throws IOException {
+    public void executeCommand(int command) {
         mCommandQueue.add(mMouseActivity.getString(command));
     }
 
@@ -255,7 +255,7 @@ public class ServerNDN implements Runnable, Server {
      * @param message string to type on clients
      * @throws IOException from sending out socket/face
      */
-    public void executeTypedMessage(String message) throws IOException {
+    public void executeTypedMessage(String message) {
         mCommandQueue.add(mMouseActivity.getString(R.string.action_custom_type) + message);
     }
 

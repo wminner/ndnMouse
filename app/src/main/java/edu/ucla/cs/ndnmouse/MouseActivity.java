@@ -206,18 +206,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    try {
-                        mServer.executeCommand(R.string.action_left_click_down);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_left_click_down);
                     displayClick(mTouchpadTextView, getString(R.string.action_left_click_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                    try {
-                        mServer.executeCommand(R.string.action_left_click_up);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_left_click_up);
                     v.playSoundEffect(SoundEffectConstants.CLICK);
                     displayClick(mTouchpadTextView, getString(R.string.action_left_click_up));
                 }
@@ -231,18 +223,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    try {
-                        mServer.executeCommand(R.string.action_right_click_down);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_right_click_down);
                     displayClick(mTouchpadTextView, getString(R.string.action_right_click_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                    try {
-                        mServer.executeCommand(R.string.action_right_click_up);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_right_click_up);
                     v.playSoundEffect(SoundEffectConstants.CLICK);
                     displayClick(mTouchpadTextView, getString(R.string.action_right_click_up));
                 }
@@ -265,18 +249,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_spacebar_down);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_spacebar_down);
                     displayKeyPress(getString(R.string.action_keypress_spacebar_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_spacebar_up);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_spacebar_up);
                     v.playSoundEffect(SoundEffectConstants.CLICK);
                     displayKeyPress(getString(R.string.action_keypress_spacebar_up));
                 }
@@ -290,18 +266,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_up_arrow_down);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_up_arrow_down);
                     displayKeyPress(getString(R.string.action_keypress_up_arrow_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_up_arrow_up);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_up_arrow_up);
                     v.playSoundEffect(SoundEffectConstants.CLICK);
                     displayKeyPress(getString(R.string.action_keypress_up_arrow_up));
                 }
@@ -315,18 +283,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_down_arrow_down);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_down_arrow_down);
                     displayKeyPress(getString(R.string.action_keypress_down_arrow_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_down_arrow_up);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_down_arrow_up);
                     v.playSoundEffect(SoundEffectConstants.CLICK);
                     displayKeyPress(getString(R.string.action_keypress_down_arrow_up));
                 }
@@ -340,18 +300,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_left_arrow_down);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_left_arrow_down);
                     displayKeyPress(getString(R.string.action_keypress_left_arrow_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_left_arrow_up);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_left_arrow_up);
                     v.playSoundEffect(SoundEffectConstants.CLICK);
                     displayKeyPress(getString(R.string.action_keypress_left_arrow_up));
                 }
@@ -365,18 +317,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_right_arrow_down);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_right_arrow_down);
                     displayKeyPress(getString(R.string.action_keypress_right_arrow_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_right_arrow_up);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_right_arrow_up);
                     v.playSoundEffect(SoundEffectConstants.CLICK);
                     displayKeyPress(getString(R.string.action_keypress_right_arrow_up));
                 }
@@ -390,18 +334,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_return_down);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_return_down);
                     displayKeyPress(getString(R.string.action_keypress_return_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_return_up);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_return_up);
                     v.playSoundEffect(SoundEffectConstants.CLICK);
                     displayKeyPress(getString(R.string.action_keypress_return_up));
                 }
@@ -415,18 +351,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_delete_down);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_delete_down);
                     displayKeyPress(getString(R.string.action_keypress_delete_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_delete_up);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_delete_up);
                     v.playSoundEffect(SoundEffectConstants.CLICK);
                     displayKeyPress(getString(R.string.action_keypress_delete_up));
                 }
@@ -440,18 +368,10 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_escape_down);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_escape_down);
                     displayKeyPress(getString(R.string.action_keypress_escape_down));
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
-                    try {
-                        mServer.executeCommand(R.string.action_keypress_escape_up);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    mServer.executeCommand(R.string.action_keypress_escape_up);
                     v.playSoundEffect(SoundEffectConstants.CLICK);
                     displayKeyPress(getString(R.string.action_keypress_escape_up));
                 }
@@ -489,11 +409,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
 
                         // Send typed message(s)
                         for (int j = 0; j < subMessages.size(); j++) {
-                            try {
-                                mServer.executeTypedMessage(subMessages.get(j));
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
+                            mServer.executeTypedMessage(subMessages.get(j));
                         }
 
                         // Toast to tell user that message was sent
@@ -544,11 +460,7 @@ public class MouseActivity extends AppCompatActivity implements SharedPreference
                     if (mTapToLeftClick && ((Math.abs(x1 - mTouchDownPos.x) <= mTapClickPixelThreshold) && (Math.abs(y1 - mTouchDownPos.y) <= mTapClickPixelThreshold))) {
                         long now = System.currentTimeMillis();
                         if (now - mTouchDownTime <= mTapClickMillisThreshold) {
-                            try {
-                                mServer.executeCommand(R.string.action_left_click_full);
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
+                            mServer.executeCommand(R.string.action_left_click_full);
                             // Helps display click text later in this method
                             tapClickOccurred = true;
                             // Play button click sound

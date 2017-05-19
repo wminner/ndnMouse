@@ -38,28 +38,28 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_marginBottom="20dp"
+                android:layout_marginEnd="10dp"
+                android:layout_marginRight="10dp"
                 android:layout_marginLeft="20dp"
                 android:layout_marginStart="20dp"
-                android:layout_marginRight="10dp"
-                android:layout_marginEnd="10dp"
                 android:layout_weight=".5"
+                android:maxLines="1"
                 android:text="@string/left_click_label"
-                android:textSize="23sp"
-                android:maxLines="1"/>
+                android:textSize="21sp" />
 
             <Button
                 android:id="@+id/b_right_click"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_marginBottom="20dp"
+                android:layout_marginEnd="20dp"
+                android:layout_marginRight="20dp"
                 android:layout_marginLeft="10dp"
                 android:layout_marginStart="10dp"
-                android:layout_marginRight="20dp"
-                android:layout_marginEnd="20dp"
                 android:layout_weight=".5"
+                android:maxLines="1"
                 android:text="@string/right_click_label"
-                android:textSize="23sp"
-                android:maxLines="1" />
+                android:textSize="21sp" />
         </LinearLayout>
     </LinearLayout>
 
