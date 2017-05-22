@@ -186,28 +186,4 @@ public class NetworkHelpers {
         System.arraycopy(yBytes, 0, msg, moveTypeBytes.length + xBytes.length, yBytes.length);
         return msg;
     }
-
-    /**
-     * Builds a mouse protocol scroll message (no seq num)
-     * Format of message:  S<y-4B>
-     * @param moveType one character representing move type (scroll only)
-     * @param y pixels
-     * @return byte array with message
-     */
-//    public static byte[] buildScrollMessage(String moveType, int x, int y, boolean invertedScroll) {
-//        byte[] xBytes, yBytes;
-//        if (invertedScroll) {
-//            xBytes = intToBytes(x);
-//            yBytes = intToBytes(y);
-//        } else {
-//            xBytes = intToBytes(-x);
-//            yBytes = intToBytes(-y);
-//        }
-//        byte[] moveTypeBytes = moveType.getBytes();
-//        byte[] msg = new byte[xBytes.length + yBytes.length + moveTypeBytes.length];
-//        System.arraycopy(moveTypeBytes, 0, msg, 0, moveTypeBytes.length);
-//        System.arraycopy(xBytes, 0, msg, moveTypeBytes.length, xBytes.length);
-//        System.arraycopy(yBytes, 0, msg, moveTypeBytes.length + xBytes.length, yBytes.length);
-//        return msg;
-//    }
 }

@@ -12,6 +12,8 @@ from Crypto import Random
 from Crypto.Cipher import AES
 import hashlib
 
+from datetime import datetime
+
 def main(argv):
 	logging_filename = "ndnMouse-log.txt"
 	logging_level = logging.ERROR
@@ -57,11 +59,11 @@ def main(argv):
 	if NFDIsRunning():
 		if not setupNFD(server_address):
 			print("Error: could not set up NFD route!\nExiting...")
-			logging.info("Error: could not set up NFD route!\nExiting...")
+			logging.info("{0} Error: could not set up NFD route!\nExiting...".format(datetime.now()))
 			exit(1)
 	else:
 		print("Error: NFD is not running!\nRun \"nfd-start\" and try again.\nExiting...")
-		logging.info("Error: NFD is not running!\nRun \"nfd-start\" and try again.\nExiting...")
+		logging.info("{0} Error: NFD is not running!\nRun \"nfd-start\" and try again.\nExiting...".format(datetime.now()))
 		exit(1)
 
 	# Create server and run it
@@ -74,7 +76,7 @@ def main(argv):
 		server.run()
 	except KeyboardInterrupt:
 		print("\nExiting...")
-		logging.info("Exiting...")
+		logging.info("{0} Exiting...".format(datetime.now()))
 	finally:
 		server.shutdown()
 
@@ -104,8 +106,8 @@ class ndnMouseClientNDN():
 	def run(self):
 		print("Use ctrl+c quit at anytime....")
 		print("Routing /ndnmouse interests to Face udp://{0}.".format(self.server_address))
-		logging.info("Use ctrl+c quit at anytime....")
-		logging.info("Routing /ndnmouse interests to Face udp://{0}.".format(self.server_address))
+		logging.info("{0} Use ctrl+c quit at anytime....".format(datetime.now()))
+		logging.info("{0} Routing /ndnmouse interests to Face udp://{1}.".format(datetime.now(), self.server_address))
 
 		# Make interest to get movement data
 		interest_move = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/move"))
@@ -141,10 +143,10 @@ class ndnMouseClientNDN():
 		msg = bytes(data.getContent().buf())
 		try:			
 			self._handle(msg)
-			logging.info("Got returned data from {0}: {1}".format(data.getName().toUri(), msg))
+			logging.info("{0} Got returned data from {1}: {2}".format(datetime.now(), data.getName().toUri(), msg))
 
 		except UnicodeDecodeError:
-				logging.error("Failed to parse data. Password on server?")
+				logging.error("{0} Failed to parse data. Password on server?".format(datetime.now()))
 
 		# Resend interest to get move/click data
 		self.face.expressInterest(interest, self._onData, self._onTimeout)
@@ -152,6 +154,7 @@ class ndnMouseClientNDN():
 
 	# Callback for when interest times out
 	def _onTimeout(self, interest):
+		logging.info("{0} TIMEOUT: {1}".format(datetime.now(), interest.getName().toUri()))
 		# Resend interest to get move/click data
 		self.face.expressInterest(interest, self._onData, self._onTimeout)
 
@@ -178,7 +181,7 @@ class ndnMouseClientNDN():
 		elif msg.startswith(b"BEAT"):
 			pass  # Ignore, out of order heartbeat response
 		else:
-			logging.error("Bad command received. Password on server?")
+			logging.error("{0} Bad command received. Password on server?".format(datetime.now()))
 			return False
 		return True
 
@@ -191,7 +194,7 @@ class ndnMouseClientNDN():
 		elif updown == "F":	# Full
 			pyautogui.click(button=click)
 		else:
-			logging.error("Invalid click type: {0} {1}".format(click, updown))
+			logging.error("{0} Invalid click type: {1} {2}".format(datetime.now(), click, updown))
 
 	# Handle keypress commands
 	def _handleKeypress(self, keypress, updown):
@@ -206,7 +209,7 @@ class ndnMouseClientNDN():
 		elif updown == "F":	# FULL
 			pyautogui.press(keypress)
 		else:
-			logging.error("Invalid keypress type: {0} {1}".format(keypress, updown))
+			logging.error("{0} Invalid keypress type: {1} {2}".format(datetime.now(), keypress, updown))
 
 	# Handle custom typed message
 	# Format of commands:  T<msg-to-type> (msg-to-type can be up to 10B)
@@ -283,8 +286,8 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 	def run(self):
 		print("Use ctrl+c quit at anytime....")
 		print("Routing /ndnmouse interests to Face udp://{0}.".format(self.server_address))
-		logging.info("Use ctrl+c quit at anytime....")
-		logging.info("Routing /ndnmouse interests to Face udp://{0}.".format(self.server_address))
+		logging.info("{0} Use ctrl+c quit at anytime....".format(datetime.now()))
+		logging.info("{0} Routing /ndnmouse interests to Face udp://{1}.".format(datetime.now(), self.server_address))
 
 		# Request password salt from producer
 		self._requestSalt()
@@ -331,7 +334,7 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 		try:
 			decrypted = self._decryptData(encrypted, server_iv)
 			server_seq_num = intFromBytes(decrypted[:self.seq_num_bytes])
-			# logging.info("server seq num = {0}, client seq num = {1}".format(server_seq_num, self.seq_num))
+
 			# If decrypted response has a valid seq num...
 			if server_seq_num > self.seq_num or self.seq_num == self.max_seq_num:
 				msg = decrypted[self.seq_num_bytes:]
@@ -341,17 +344,17 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 					self.seq_num = server_seq_num
 					self.bad_response_count = 0
 
-				logging.debug("Got returned data from {0}: {1}".format(data.getName().toUri(), msg))
+				logging.debug("{0} Got returned data from {1}: {2}".format(datetime.now(), data.getName().toUri(), msg))
 
 			else:
-				logging.error("Bad sequence number received!")
+				logging.error("{0} Bad sequence number received!".format(datetime.now()))
 				self.bad_response_count += 1
 				if self.bad_response_count > self.max_bad_responses:
 					# Send special interest to update server's seq num
 					self._syncWithServer()
 
 		except (UnicodeDecodeError, ValueError):
-			logging.error("Failed to decrypt data. Wrong password?")
+			logging.error("{0} Failed to decrypt data. Wrong password?".format(datetime.now()))
 			self.bad_response_count += 1
 			if self.bad_response_count > self.max_bad_responses:
 				self._syncWithServer()
@@ -362,13 +365,14 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 
 	# Callback when timeout for a general mouse command interest
 	def _onTimeout(self, interest):
+		logging.info("{0} TIMEOUT: {1}".format(datetime.now(), interest.getName().toUri()))
 		# Resend interest to get move/click data
 		self.face.expressInterest(interest, self._onData, self._onTimeout)
 
 
 	# Send a salt request interest
 	def _requestSalt(self):
-		logging.info("Sending salt request interest: /ndnmmouse/salt")
+		logging.info("{0} Sending salt request interest: /ndnmmouse/salt".format(datetime.now()))
 		self.salt_received = False
 		interest_salt = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/salt"))
 		interest_salt.setInterestLifetimeMilliseconds(self.interest_timeout)
@@ -380,7 +384,7 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 	def _onSaltData(self, interest, data):
 		# Validate salt is correct length
 		salt = bytes(data.getContent().buf())
-		logging.info(b"Received salt data: " + salt)
+		logging.info(str(datetime.now()).encode() + b" Received salt data: " + salt)
 		if len(salt) == self.salt_bytes:
 			# Get key from password and salt
 			self.key = self._getKeyFromPassword(self.password, salt)
@@ -392,6 +396,7 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 
 	# Callback when timeout for getting password salt from producer
 	def _onSaltTimeout(self, interest):
+		logging.info("{0} TIMEOUT: /ndnmouse/salt".format(datetime.now()))
 		# Just resend interest
 		self.face.expressInterest(interest, self._onSaltData, self._onSaltTimeout)
 	
@@ -413,7 +418,7 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 		interest_update_seq = pyndn.interest.Interest(interest_name)
 		interest_update_seq.setInterestLifetimeMilliseconds(self.interest_timeout)
 		interest_update_seq.setMustBeFresh(True)
-		logging.debug("Sending set seq num interest: " + interest_name.toUri())
+		logging.debug("{0} Sending set seq num interest: ".format(datetime.now()) + interest_name.toUri())
 		self.face.expressInterest(interest_update_seq, self._onUpdateSeqData, self._onUpdateSeqTimeout)
 
 	
@@ -423,9 +428,8 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 		server_iv = data_bytes[:self.iv_bytes]
 		encrypted = data_bytes[self.iv_bytes:]
 		decrypted = self._decryptData(encrypted, server_iv)
-
 		server_seq_num = intFromBytes(decrypted[:self.seq_num_bytes])
-		# logging.info("server seq num = {0}, client seq num = {1}".format(server_seq_num, self.seq_num))
+
 		# If decrypted response has a valid seq num...
 		if server_seq_num > self.seq_num or self.seq_num == self.max_seq_num:
 			try:
@@ -436,12 +440,12 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 					return
 			
 			except UnicodeDecodeError:
-				logging.error("Failed to decrypt data. Wrong password?")
+				logging.error("{0} Failed to decrypt data. Wrong password?".format(datetime.now()))
 				self.bad_response_count += 1
 				if self.bad_response_count > self.max_bad_responses:
 					self._syncWithServer()
 		else:
-			logging.error("Bad sequence number received!")
+			logging.error("{0} Bad sequence number received!".format(datetime.now()))
 				
 		# Resend update seq interest, because we didn't get proper response back
 		self.face.expressInterest(interest, self._onUpdateSeqData, self._onUpdateSeqTimeout)	
@@ -449,6 +453,7 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 
 	# Callback when timeout for an update seq num interest
 	def _onUpdateSeqTimeout(self, interest):
+		logging.info("{0} TIMEOUT: /ndnmouse/seq".format(datetime.now()))
 		# Resend interest to try to synchronize seq nums again
 		self.face.expressInterest(interest, self._onUpdateSeqData, self._onUpdateSeqTimeout)
 
@@ -461,7 +466,7 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 			return
 		self.pending_sync = True
 
-		logging.info("Attempting to synchronize with server")
+		logging.info("{0} Attempting to synchronize with server".format(datetime.now()))
 		# Get password salt
 		self._requestSalt()
 		# Wait for salt data to return
@@ -494,7 +499,7 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 		elif msg.startswith(b"BEAT"):
 			pass  # Ignore, out of order heartbeat response
 		else:
-			logging.error("Bad response data received. Wrong password?")
+			logging.error("{0} Bad response data received. Wrong password?".format(datetime.now()))
 			self.bad_response_count += 1
 			if self.bad_response_count > self.max_bad_responses:
 				self._syncWithServer()
@@ -508,19 +513,19 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 
 	# Encrypt data, message and iv are byte strings
 	def _encryptData(self, message, iv):
-		logging.info(b"Data SENT: " + message)
+		logging.info(str(datetime.now()).encode() + b" Data SENT: " + message)
 		cipher = AES.new(self.key, AES.MODE_CBC, iv)
 		message = self._PKCS5Pad(message)
 		encrypted = cipher.encrypt(message)
-		logging.debug(b"Encrypting data SENT: " + encrypted)
+		logging.debug(str(datetime.now()).encode() + b" Encrypting data SENT: " + encrypted)
 		return encrypted
 
 	# Decrypt data, encrypted and iv are byte strings
 	def _decryptData(self, encrypted, iv):
-		logging.debug(b"Encrypted data RECEIVED: " + encrypted)
+		logging.debug(str(datetime.now()).encode() + b" Encrypted data RECEIVED: " + encrypted)
 		cipher = AES.new(self.key, AES.MODE_CBC, iv)
 		decrypted = self._PKCS5Unpad(cipher.decrypt(encrypted))
-		logging.info(b"Data RECEIVED: " + decrypted)
+		logging.info(str(datetime.now()).encode() + b" Data RECEIVED: " + decrypted)
 		return decrypted
 
 	# Get a new random initialization vector (IV), return byte string
