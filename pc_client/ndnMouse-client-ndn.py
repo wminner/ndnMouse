@@ -154,7 +154,7 @@ class ndnMouseClientNDN():
 
 	# Callback for when interest times out
 	def _onTimeout(self, interest):
-		logging.info("{0} TIMEOUT: {1}".format(datetime.now(), interest.getName().toUri()))
+		# logging.info("{0} TIMEOUT: {1}".format(datetime.now(), interest.getName().toUri()))
 		# Resend interest to get move/click data
 		self.face.expressInterest(interest, self._onData, self._onTimeout)
 
@@ -365,7 +365,7 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 
 	# Callback when timeout for a general mouse command interest
 	def _onTimeout(self, interest):
-		logging.info("{0} TIMEOUT: {1}".format(datetime.now(), interest.getName().toUri()))
+		# logging.info("{0} TIMEOUT: {1}".format(datetime.now(), interest.getName().toUri()))
 		# Resend interest to get move/click data
 		self.face.expressInterest(interest, self._onData, self._onTimeout)
 
@@ -396,7 +396,7 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 
 	# Callback when timeout for getting password salt from producer
 	def _onSaltTimeout(self, interest):
-		logging.info("{0} TIMEOUT: /ndnmouse/salt".format(datetime.now()))
+		# logging.info("{0} TIMEOUT: /ndnmouse/salt".format(datetime.now()))
 		# Just resend interest
 		self.face.expressInterest(interest, self._onSaltData, self._onSaltTimeout)
 	
@@ -453,7 +453,7 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 
 	# Callback when timeout for an update seq num interest
 	def _onUpdateSeqTimeout(self, interest):
-		logging.info("{0} TIMEOUT: /ndnmouse/seq".format(datetime.now()))
+		# logging.info("{0} TIMEOUT: /ndnmouse/seq".format(datetime.now()))
 		# Resend interest to try to synchronize seq nums again
 		self.face.expressInterest(interest, self._onUpdateSeqData, self._onUpdateSeqTimeout)
 

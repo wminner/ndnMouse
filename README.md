@@ -6,6 +6,8 @@
 
 It's a secure control interface for a PC over named-data-networking (NDN), using a mobile device! It also has UDP support.
 
+If you want more detail, check out the [project report](docs/report/report.pdf).
+
 ### Current Features
 
 * Mouse control: movement, left click, right click, tap-to-click
@@ -23,7 +25,7 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 ### Supported Platforms
 
 ##### Severs/Producers (phone): 
-* Any relatively modern Android phone
+* Any relatively modern Android phone (Android 4.1 and up)
 
 ##### Clients/Consumers (PC): basically anything that can run [NFD](http://named-data.net/doc/NFD/current/INSTALL.html) and Python3
 * Any Linux distribution that can run NFD and Python3 (tested on Ubuntu 16)
@@ -63,6 +65,8 @@ It's a secure control interface for a PC over named-data-networking (NDN), using
 <img src="docs/screenshots/start.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/touchpad.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/keyboard.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/custom_type_message.png" width="205"/>
 <img src="docs/screenshots/settings.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/client1.png" width="430"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/client2.png" width="430"/>
 <img src="docs/screenshots/client3.png" width="430"/>
+
+You can also watch the [demo video](https://youtu.be/z1TiQffh5Mc).
 
 # License
 See [here](./LICENSE)
