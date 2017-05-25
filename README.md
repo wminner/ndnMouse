@@ -66,7 +66,7 @@ If you want more detail, check out the [project report](docs/report/report.pdf).
 <img src="docs/screenshots/settings.png" width="205"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/client1.png" width="430"/>&nbsp;&nbsp;&nbsp;&nbsp;<img src="docs/screenshots/client2.png" width="430"/>
 <img src="docs/screenshots/client3.png" width="430"/>
 
-You can also watch the [demo video](https://youtu.be/z1TiQffh5Mc).
+You can also watch the [demo video](https://www.youtube.com/watch?v=ZNNqTG2ha6s).
 
 # License
 See [here](./LICENSE)
