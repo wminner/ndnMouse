@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, getopt, time
+import sys, getopt, time, re
 import pyndn, ipaddress
 import subprocess
 import pyautogui
@@ -17,7 +17,7 @@ from datetime import datetime
 def main(argv):
 	logging_filename = "ndnMouse-log.txt"
 	logging_level = logging.ERROR
-	default_address = "192.168.1.2"
+	default_address = "ff:ff:ff:ff:ff:ff"
 	
 	def printUsage():
 		print("Usage: ndnMouse-client-udp.py [logging_level_flag]")
@@ -554,9 +554,9 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 # User Input Functions
 ################################################################################
 
-# Prompt user for server address and port, and validate them
+# Prompt user for server address, and then validate
 def getServerAddress(default_addr):
-	last_ip_addr = "ndnMouse-temp.pkl"
+	last_ip_addr = "ndnMouse-bluetooth-temp.pkl"
 
 	# Try to get pickle of last IP address
 	try:
@@ -565,12 +565,13 @@ def getServerAddress(default_addr):
 	except IOError:
 		last_addr = default_addr
 
-	addr = pyautogui.prompt(text="Enter server IP address", title="Server Address", default=last_addr)
+	addr = pyautogui.prompt(text="Enter server bluetooth MAC address", title="Bluetooth MAC Address", default=last_addr)
 
 	# Validate address
-	try:
-		ipaddress.ip_address(addr)
-	except ValueError:
+	# try:
+	# 	ipaddress.ip_address(addr)
+	if not re.match("[0-9a-f]{2}([-:])[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", addr.lower()):
+	# except ValueError:
 		pyautogui.alert(text="Address \"{0}\" is not valid!".format(addr), title="Invalid Address", button='Exit')
 		sys.exit(1)
 
@@ -607,7 +608,7 @@ def NFDIsRunning():
 
 # Setup NFD's route to the phone server's NFD
 def setupNFD(addr):
-	process = subprocess.Popen(["nfdc", "register", "/ndnmouse", "udp://{0}".format(addr)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	process = subprocess.Popen(["nfdc", "register", "/ndnmouse", "bluetooth://{0}".format(addr)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	out, err = process.communicate()
 	if out.startswith(b"Successful"):
 		return True
