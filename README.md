@@ -6,7 +6,7 @@
 
 It's a secure control interface for a PC over named-data-networking (NDN), using a mobile device! It also has UDP support.
 
-If you want more detail, check out the [project report](docs/report/report.pdf).
+If you want more detail, check out the project [report](docs/report/report.pdf) or [slides](docs/report/slides.pdf).
 
 ### Current Features
 
