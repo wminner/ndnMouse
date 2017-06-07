@@ -69,8 +69,8 @@ public class ServerNDNSecure extends ServerNDN {
      */
     @Override
     void registerPrefixes() throws IOException, SecurityException {
-        // Prefix for movement updates (synchronous)
-        Name prefix_move = new Name(mMouseActivity.getString(R.string.ndn_prefix_mouse_move));
+        // Prefix for all updates
+        Name prefix_move = new Name(mMouseActivity.getString(R.string.ndn_prefix_mouse_update));
         long prefixId = mFace.registerPrefix(prefix_move,
                 new OnInterestCallback() {
                     @Override
@@ -79,80 +79,44 @@ public class ServerNDNSecure extends ServerNDN {
                         // Log.d(TAG, "Got interest: " + interest.getName());
                         Data replyData = new Data(interest.getName());
                         replyData.getMetaInfo().setFreshnessPeriod(mFreshnessPeriod);
-                        Point position = mMouseActivity.getRelativePosition();
-                        // Skip update if no relative movement since last update
-                        if (position.equals(0, 0))
-                            return;
 
-                        String moveType = mMouseActivity.getMoveType();
-                        boolean scrollActivated = moveType.equals(mMouseActivity.getString(R.string.protocol_move_scrolling));
-
-                        // Find scaled x and y position according to appropriate sensitivity
-                        int scaledX, scaledY;
-                        if (scrollActivated) {
-                            scaledX = (int) (position.x * mScrollSensitivity);
-                            scaledY = (int) (position.y * mScrollSensitivity);
-                            if (!mScrollInverted) {
-                                scaledX = -scaledX;
-                                scaledY = -scaledY;
-                            }
-                        } else {
-                            scaledX = (int) (position.x * mMoveSensitivity);
-                            scaledY = (int) (position.y * mMoveSensitivity);
-                        }
-
-                        // Build reply message and set data contents
-                        byte[] reply = NetworkHelpers.buildMoveMessage(moveType, scaledX, scaledY);
-                        // Log.d(TAG, "Sending update: " + replyString);
-
-                        try {
-                            // Encrypt reply
-                            MousePacket mousePacket = new MousePacket(reply, getNextSeqNum(), mKey);
-                            byte[] encryptedReply = mousePacket.getEncryptedPacket();
-
-                            // Set content of data
-                            replyData.setContent(new Blob(encryptedReply));
-
-                            // Send data out face
-                            face.putData(replyData);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                            Log.e(TAG, "Failed to put data.");
-                        } catch (ShortBufferException | InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
-                            Log.e(TAG, "Error during data encryption!");
-                        }
-                    }
-                },
-                new OnRegisterFailed() {
-                    @Override
-                    public void onRegisterFailed(Name name) {
-                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_move));
-                        mPrefixRegisterError = true;
-                        Log.e(TAG, "Failed to register prefix: " + name.toUri());
-                    }
-                });
-        mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_mouse_move), prefixId);
-
-        // Prefix for click commands (asynchronous events)
-        Name prefix_click = new Name(mMouseActivity.getString(R.string.ndn_prefix_mouse_command));
-        prefixId = mFace.registerPrefix(prefix_click,
-                new OnInterestCallback() {
-                    @Override
-                    public void onInterest(Name prefix, Interest interest, Face face, long interestFilterId, InterestFilter filter) {
-
-                        // Log.d(TAG, "Got interest: " + interest.getName());
-                        Data replyData = new Data(interest.getName());
-                        replyData.getMetaInfo().setFreshnessPeriod(mFreshnessPeriod);
-
-                        byte[] msg;
+                        // Check if any pending commands in command queue first
+                        byte[] msg = null;
                         synchronized (mCommandQueue) {
                             // If no click has occurred, return let the interest timeout
-                            if (mCommandQueue.isEmpty())
-                                return;
-                            // Build reply string and set data contents
-                            msg = (mCommandQueue.remove()).getBytes();
+                            if (!mCommandQueue.isEmpty())
+                                // Build reply string and set data contents
+                                msg = (mCommandQueue.remove()).getBytes();
                         }
-                        // Log.d(TAG, "Sending update: " + msg);
+
+                        // If there was no pending command, then send the latest mouse movement (if any)
+                        if (null == msg) {
+                            Point position = mMouseActivity.getRelativePosition();
+                            // Skip update if no relative movement since last update
+                            if (position.equals(0, 0))
+                                return;
+
+                            String moveType = mMouseActivity.getMoveType();
+                            boolean scrollActivated = moveType.equals(mMouseActivity.getString(R.string.protocol_move_scrolling));
+
+                            // Find scaled x and y position according to appropriate sensitivity
+                            int scaledX, scaledY;
+                            if (scrollActivated) {
+                                scaledX = (int) (position.x * mScrollSensitivity);
+                                scaledY = (int) (position.y * mScrollSensitivity);
+                                if (!mScrollInverted) {
+                                    scaledX = -scaledX;
+                                    scaledY = -scaledY;
+                                }
+                            } else {
+                                scaledX = (int) (position.x * mMoveSensitivity);
+                                scaledY = (int) (position.y * mMoveSensitivity);
+                            }
+
+                            // Build reply message and set data contents
+                            msg = NetworkHelpers.buildMoveMessage(moveType, scaledX, scaledY);
+                            // Log.d(TAG, "Sending update: " + msg);
+                        }
 
                         try {
                             // Encrypt reply
@@ -168,7 +132,6 @@ public class ServerNDNSecure extends ServerNDN {
                             e.printStackTrace();
                             Log.e(TAG, "Failed to put data.");
                         } catch (ShortBufferException | InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
-                            e.printStackTrace();
                             Log.e(TAG, "Error during data encryption!");
                         }
                     }
@@ -176,12 +139,12 @@ public class ServerNDNSecure extends ServerNDN {
                 new OnRegisterFailed() {
                     @Override
                     public void onRegisterFailed(Name name) {
-                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_command));
+                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_update));
                         mPrefixRegisterError = true;
                         Log.e(TAG, "Failed to register prefix: " + name.toUri());
                     }
                 });
-        mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_mouse_command), prefixId);
+        mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_mouse_update), prefixId);
 
         // Prefix for seq num updates (special interest for cases of desync only)
         Name prefix_update_seq = new Name(mMouseActivity.getString(R.string.ndn_prefix_update_seq));
@@ -245,7 +208,7 @@ public class ServerNDNSecure extends ServerNDN {
                 new OnRegisterFailed() {
                     @Override
                     public void onRegisterFailed(Name name) {
-                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_command));
+                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_update_seq));
                         mPrefixRegisterError = true;
                         Log.e(TAG, "Failed to register prefix: " + name.toUri());
                     }
@@ -283,7 +246,7 @@ public class ServerNDNSecure extends ServerNDN {
                 new OnRegisterFailed() {
                     @Override
                     public void onRegisterFailed(Name name) {
-                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_command));
+                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_salt));
                         mPrefixRegisterError = true;
                         Log.e(TAG, "Failed to register prefix: " + name.toUri());
                     }

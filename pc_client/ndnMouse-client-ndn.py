@@ -93,8 +93,8 @@ class ndnMouseClientNDN():
 	pyautogui.PAUSE = 0
 
 	# NDN variables
-	interest_timeout = 100
-	sleep_time = 0.050
+	interest_timeout = 50
+	sleep_time = 0.020
 
 
 	def __init__(self, addr):
@@ -110,19 +110,13 @@ class ndnMouseClientNDN():
 		logging.info("{0} Routing /ndnmouse interests to Face udp://{1}.".format(datetime.now(), self.server_address))
 
 		# Make interest to get movement data
-		interest_move = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/move"))
+		interest_move = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/update"))
 		interest_move.setInterestLifetimeMilliseconds(self.interest_timeout)
 		interest_move.setMustBeFresh(True)
 
-		# Make interest to get click data
-		interest_click = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/command"))
-		interest_click.setInterestLifetimeMilliseconds(self.interest_timeout)
-		interest_click.setMustBeFresh(True)
-
 		# Send interests
 		self.face.expressInterest(interest_move, self._onData, self._onTimeout)
-		self.face.expressInterest(interest_click, self._onData, self._onTimeout)
-
+		
 		# Loop forever, processing data as it comes back
 		# Additional interests are sent by _onData and _onTimeout callbacks
 		while True:			
@@ -298,18 +292,12 @@ class ndnMouseClientNDNSecure(ndnMouseClientNDN):
 			time.sleep(self.sleep_time)
 
 		# Make interest to get movement data
-		interest_move = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/move"))
+		interest_move = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/update"))
 		interest_move.setInterestLifetimeMilliseconds(self.interest_timeout)
 		interest_move.setMustBeFresh(True)
 
-		# Make interest to get click data
-		interest_click = pyndn.interest.Interest(pyndn.name.Name("/ndnmouse/command"))
-		interest_click.setInterestLifetimeMilliseconds(self.interest_timeout)
-		interest_click.setMustBeFresh(True)
-
 		# Send move and click interests
 		self.face.expressInterest(interest_move, self._onData, self._onTimeout)
-		self.face.expressInterest(interest_click, self._onData, self._onTimeout)
 
 		# Loop forever, processing data as it comes back
 		# Additional interests are sent by _onData and _onTimeout callbacks

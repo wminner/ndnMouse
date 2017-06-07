@@ -109,8 +109,7 @@
     <string name="protocol_closing_request" translatable="false">CLOSE</string>
 
     <!--ServerNDN-->
-    <string name="ndn_prefix_mouse_move" translatable="false">/ndnmouse/move</string>
-    <string name="ndn_prefix_mouse_command" translatable="false">/ndnmouse/command</string>
+    <string name="ndn_prefix_mouse_update" translatable="false">/ndnmouse/update</string>
     <string name="ndn_prefix_update_seq" translatable="false">/ndnmouse/seq</string>
     <string name="ndn_prefix_salt" translatable="false">/ndnmouse/salt</string>
     <string name="ndn_prefix_identity" translatable="false">/ndnmouse/identity</string>

@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="edu.ucla.cs.ndnmouse.KeyboardActivity">
+    tools:context="edu.ucla.cs.ndnmouse.MainActivity">
 
     <TextView
         android:id="@+id/tv_keyboard_touchpad"

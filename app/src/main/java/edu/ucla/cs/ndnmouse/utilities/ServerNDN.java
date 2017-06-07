@@ -41,7 +41,7 @@ public class ServerNDN implements Runnable, Server {
     float mMoveSensitivity;                                 // Sensitivity multiplier for relative movement
     boolean mScrollInverted;                                // Inverts the two-finger scroll direction if true
     float mScrollSensitivity;                               // Sensitivity multiplier for scrolling movement
-    private final static int mUpdateIntervalMillis = 50;    // Number of milliseconds to wait before sending next update. May require tuning.
+    private final static int mUpdateIntervalMillis = 20;    // Number of milliseconds to wait before sending next update. May require tuning.
     final static double mFreshnessPeriod = 0;               // Number of milliseconds data is considered fresh. May require tuning.
 
     private Handler mPrefixErrorHandler;                            // Handles work for the UI thread (toast) when there is an error setting up prefixes
@@ -143,8 +143,8 @@ public class ServerNDN implements Runnable, Server {
      * @throws SecurityException for Face registration
      */
     void registerPrefixes() throws IOException, SecurityException {
-        // Prefix for movement updates (synchronous)
-        Name prefix_move = new Name(mMouseActivity.getString(R.string.ndn_prefix_mouse_move));
+        // Prefix for all updates
+        Name prefix_move = new Name(mMouseActivity.getString(R.string.ndn_prefix_mouse_update));
         long prefixId = mFace.registerPrefix(prefix_move,
                 new OnInterestCallback() {
                     @Override
@@ -153,73 +153,50 @@ public class ServerNDN implements Runnable, Server {
                         // Log.d(TAG, "Got interest: " + interest.getName());
                         Data replyData = new Data(interest.getName());
                         replyData.getMetaInfo().setFreshnessPeriod(mFreshnessPeriod);
-                        Point position = mMouseActivity.getRelativePosition();
-                        // Skip update if no relative movement since last update
-                        if (position.equals(0, 0))
-                            return;
 
-                        String moveType = mMouseActivity.getMoveType();
-                        boolean scrollActivated = moveType.equals(mMouseActivity.getString(R.string.protocol_move_scrolling));
-
-                        // Find scaled x and y position according to appropriate sensitivity
-                        int scaledX, scaledY;
-                        if (scrollActivated) {
-                            scaledX = (int) (position.x * mScrollSensitivity);
-                            scaledY = (int) (position.y * mScrollSensitivity);
-                            if (!mScrollInverted) {
-                                scaledX = -scaledX;
-                                scaledY = -scaledY;
-                            }
-                        } else {
-                            scaledX = (int) (position.x * mMoveSensitivity);
-                            scaledY = (int) (position.y * mMoveSensitivity);
-                        }
-
-                        // Build reply message and set data contents
-                        byte[] reply = NetworkHelpers.buildMoveMessage(moveType, scaledX, scaledY);
-                        // Log.d(TAG, "Sending update: " + replyString);
-                        replyData.setContent(new Blob(reply));
-
-                        // Send data out face
-                        try {
-                            face.putData(replyData);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                            Log.e(TAG, "Failed to put data.");
-                        }
-                    }
-                },
-                new OnRegisterFailed() {
-                    @Override
-                    public void onRegisterFailed(Name name) {
-                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_move));
-                        mPrefixRegisterError = true;
-                        Log.e(TAG, "Failed to register prefix: " + name.toUri());
-                    }
-                });
-        mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_mouse_move), prefixId);
-
-        // Prefix for click commands (asynchronous events)
-        Name prefix_click = new Name(mMouseActivity.getString(R.string.ndn_prefix_mouse_command));
-        prefixId = mFace.registerPrefix(prefix_click,
-                new OnInterestCallback() {
-                    @Override
-                    public void onInterest(Name prefix, Interest interest, Face face, long interestFilterId, InterestFilter filter) {
-
-                        // Log.d(TAG, "Got interest: " + interest.getName());
-                        Data replyData = new Data(interest.getName());
-                        replyData.getMetaInfo().setFreshnessPeriod(mFreshnessPeriod);
-
-                        String replyString;
+                        // Check if any pending commands in command queue first
+                        String replyString = null;
                         synchronized (mCommandQueue) {
                             // If no click has occurred, return let the interest timeout
-                            if (mCommandQueue.isEmpty())
-                                return;
-                            // Build reply string and set data contents
-                            replyString = mCommandQueue.remove();
+                            if (!mCommandQueue.isEmpty())
+                                // Build reply string and set data contents
+                                replyString = mCommandQueue.remove();
                         }
-                        // Log.d(TAG, "Sending update: " + replyString);
-                        replyData.setContent(new Blob(replyString));
+
+                        // Set replyData if there was a pending command
+                        if (null != replyString) {
+                            // Log.d(TAG, "Sending update: " + replyString);
+                            replyData.setContent(new Blob(replyString));
+
+                        // Otherwise build replyData using the latest mouse movement (if any)
+                        } else {
+                            Point position = mMouseActivity.getRelativePosition();
+                            // Skip update if no relative movement since last update
+                            if (position.equals(0, 0))
+                                return;
+
+                            String moveType = mMouseActivity.getMoveType();
+                            boolean scrollActivated = moveType.equals(mMouseActivity.getString(R.string.protocol_move_scrolling));
+
+                            // Find scaled x and y position according to appropriate sensitivity
+                            int scaledX, scaledY;
+                            if (scrollActivated) {
+                                scaledX = (int) (position.x * mScrollSensitivity);
+                                scaledY = (int) (position.y * mScrollSensitivity);
+                                if (!mScrollInverted) {
+                                    scaledX = -scaledX;
+                                    scaledY = -scaledY;
+                                }
+                            } else {
+                                scaledX = (int) (position.x * mMoveSensitivity);
+                                scaledY = (int) (position.y * mMoveSensitivity);
+                            }
+
+                            // Build reply message and set data contents
+                            byte[] reply = NetworkHelpers.buildMoveMessage(moveType, scaledX, scaledY);
+                            // Log.d(TAG, "Sending update: " + replyString);
+                            replyData.setContent(new Blob(reply));
+                        }
 
                         // Send data out face
                         try {
@@ -233,12 +210,12 @@ public class ServerNDN implements Runnable, Server {
                 new OnRegisterFailed() {
                     @Override
                     public void onRegisterFailed(Name name) {
-                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_command));
+                        mRegisteredPrefixIds.remove(mMouseActivity.getString(R.string.ndn_prefix_mouse_update));
                         mPrefixRegisterError = true;
                         Log.e(TAG, "Failed to register prefix: " + name.toUri());
                     }
                 });
-        mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_mouse_command), prefixId);
+        mRegisteredPrefixIds.put(mMouseActivity.getString(R.string.ndn_prefix_mouse_update), prefixId);
     }
 
     /**

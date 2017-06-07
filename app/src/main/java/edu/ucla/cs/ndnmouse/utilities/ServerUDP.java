@@ -245,7 +245,7 @@ public class ServerUDP implements Runnable, Server {
         private final DatagramSocket mSocket;   // Shared UDP socket for all worker threads
         final InetAddress mReplyAddr;           // Client's address this will reply to
         final int mReplyPort;                   // Client's port this will reply to
-        final static int mUpdateIntervalMillis = 50;    // Number of milliseconds to wait before sending next update. May require tuning.
+        final static int mUpdateIntervalMillis = 20;    // Number of milliseconds to wait before sending next update. May require tuning.
 
         /**
          * Constructor
